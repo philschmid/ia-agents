@@ -2,6 +2,8 @@
 
 Minimal agent framework for the **Gemini Interactions API**.
 
+📖 **[Documentation](https://philschmid.github.io/ia-agents/)**
+
 ## Features
 
 - 🔄 **Streaming Agent Loop** — Built on the stateful Interactions API with multi-turn, multi-modal support
