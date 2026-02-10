@@ -6,6 +6,8 @@ Agent wrapper with hooks system for `@philschmid/agents-core`.
 
 ```bash
 bun add @philschmid/agent
+# or
+npm install @philschmid/agent
 ```
 
 ## Features
@@ -18,7 +20,7 @@ bun add @philschmid/agent
 ## Quick Start
 
 ```typescript
-import { createAgentSession, printStream } from '@philschmid/agent';
+import { createAgentSession, printAgentStream } from '@philschmid/agent';
 
 const session = createAgentSession({
   model: 'gemini-3-flash-preview',
@@ -33,11 +35,7 @@ session.on('beforeToolExecute', (event) => {
 
 // Send message and stream
 session.send('Read the package.json file');
-for await (const event of session.stream()) {
-  if (event.type === 'text.delta') {
-    process.stdout.write(event.delta);
-  }
-}
+await printAgentStream(session.stream(), { verbosity: 'verbose' });
 ```
 
 ## Built-in Tools

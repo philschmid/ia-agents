@@ -1,6 +1,6 @@
 {
   "name": "@philschmid/agent",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "Agent wrapper with hooks system for @philschmid/agents-core",
   "main": "./src/index.ts",
@@ -13,7 +13,11 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "bun test",
@@ -39,7 +43,13 @@
     "tsup": "^8.3.0",
     "typescript": "^5.6.3"
   },
-  "keywords": ["ai", "agents", "hooks", "gemini", "typescript"],
+  "keywords": [
+    "ai",
+    "agents",
+    "hooks",
+    "gemini",
+    "typescript"
+  ],
   "author": "Philipp Schmid",
   "repository": {
     "type": "git",
@@ -50,5 +60,8 @@
     "url": "https://github.com/philschmid/ia-agents/issues"
   },
   "homepage": "https://github.com/philschmid/ia-agents/tree/main/packages/agent#readme",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  }
 }

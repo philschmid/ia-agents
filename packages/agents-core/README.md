@@ -4,42 +4,12 @@ Minimal agent framework for the **Gemini Interactions API**.
 
 Based on [pi-ai EventStream pattern](https://github.com/badlogic/pi-mono).
 
-## Event Flow
+## Installation
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  "What is 123 * 456?"                                                       │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─ agent.start ───────────────────────────────────────────────────────────────┐
-│                                                                             │
-│  ┌─ interaction.start ────────────────────────────────────────────────────┐ │
-│  │                                                                        │ │
-│  │  thought.signature ──▶ "CiQBcsjaf..."                                  │ │
-│  │                                                                        │ │
-│  │  ┌─ tool.start ─────────────────────────────────────────────────────┐  │ │
-│  │  │  name: "calculate"                                               │  │ │
-│  │  │  args: { expr: "123 * 456" }                                     │  │ │
-│  │  │                                                                  │  │ │
-│  │  │  tool.delta ───▶ "Computing..."  (optional streaming)            │  │ │
-│  │  │                                                                  │  │ │
-│  │  └─ tool.end ───────────────────────────────────────────────────────┘  │ │
-│  │     result: "56088"                                                    │ │
-│  │                                                                        │ │
-│  └─ interaction.end ──────────────────────────────────────────────────────┘ │
-│     turn: { role: "model", content: [thought, function_call] }              │
-│                                                                             │
-│  ┌─ interaction.start ────────────────────────────────────────────────────┐ │
-│  │                                                                        │ │
-│  │  text.start ──▶ text.delta ──▶ text.delta ──▶ text.end                 │ │
-│  │                 "The"          "result"       "The result is 56088"    │ │
-│  │                                                                        │ │
-│  └─ interaction.end ──────────────────────────────────────────────────────┘ │
-│     turn: { role: "model", content: [text] }                                │
-│                                                                             │
-└─ agent.end ─────────────────────────────────────────────────────────────────┘
-   interactions: [user, model, tool_result, model]
+```bash
+bun add @philschmid/agents-core
+# or
+npm install @philschmid/agents-core
 ```
 
 ## Examples
@@ -118,13 +88,3 @@ const result = await stream.result();
 ```
 
 > **Note:** For multi-turn with message queuing, use `AgentSession` from `@philschmid/agent`.
-
-## Events
-
-| Event | Description |
-|-------|-------------|
-| `agent.start/end` | Agent lifecycle |
-| `interaction.start/end` | Model call (with interactionId) |
-| `text.start/delta/end` | Text streaming |
-| `thought.summary` | Thinking summary output |
-| `tool.start/delta/end` | Tool execution |

@@ -14,16 +14,12 @@ Minimal agent framework for the **Gemini Interactions API**.
 
 ## Installation
 
-Install packages directly from the GitHub repository:
-
 ```bash
 # bun
-bun add github:philschmid/ia-agents/packages/agents-core
-bun add github:philschmid/ia-agents/packages/agent
+bun add @philschmid/agents-core @philschmid/agent
 
 # npm
-npm install github:philschmid/ia-agents#main --workspace=packages/agents-core
-npm install github:philschmid/ia-agents#main --workspace=packages/agent
+npm install @philschmid/agents-core @philschmid/agent
 ```
 
 ## Quick Start
@@ -112,6 +108,23 @@ bun run lint:fix  # Fix lint issues
 bun test          # Run tests
 bun run build     # Build packages
 ```
+
+## Releasing
+
+Each package has its own `release.sh` script. Always release `agents-core` first since `agent` depends on it.
+
+```bash
+# Release agents-core
+cd packages/agents-core
+./release.sh 0.1.0            # publish to npm
+./release.sh --dry-run 0.1.0  # test without publishing
+
+# Then release agent
+cd packages/agent
+./release.sh 0.1.0
+```
+
+The scripts run lint + tests, bump the version, build, and publish. The agent script automatically swaps `workspace:*` to a pinned version for publish and restores it after.
 
 ## Acknowledgements
 

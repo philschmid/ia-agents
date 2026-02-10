@@ -1,6 +1,6 @@
 {
   "name": "@philschmid/agents-core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "Minimal agent framework for Gemini Interactions API",
   "main": "./src/index.ts",
@@ -42,5 +42,8 @@
     "url": "https://github.com/philschmid/ia-agents/issues"
   },
   "homepage": "https://github.com/philschmid/ia-agents/tree/main/packages/agents-core#readme",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  }
 }
