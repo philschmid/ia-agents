@@ -1,0 +1,230 @@
+---
+title: Tool Calling Guide
+description: Practical patterns for tool implementation
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import Note from '../../../components/callouts/Note.astro';
+import Tip from '../../../components/callouts/Tip.astro';
+
+This guide covers practical patterns for implementing tools in your agent.
+
+## Tool Design Principles
+
+1. **Single responsibility**: Each tool does one thing well
+2. **Clear descriptions**: The model knows when to use it
+3. **Fail gracefully**: Return errors the model can act on
+4. **Validate inputs**: Don't trust the model's arguments
+
+---
+
+## Validation Patterns
+
+Always validate inputs before acting:
+
+```typescript
+const readFileTool: AgentTool = {
+  name: 'read_file',
+  label: 'Read File',
+  description: 'Reads a file from the filesystem',
+  parameters: {
+    type: 'object',
+    properties: {
+      path: { type: 'string' },
+    },
+    required: ['path'],
+  },
+  execute: async (_id, args) => {
+    const path = args.path as string;
+
+    // Validate path
+    if (!path || typeof path !== 'string') {
+      return { result: 'Error: path is required', isError: true };
+    }
+
+    // Prevent directory traversal
+    if (path.includes('..')) {
+      return { result: 'Error: path cannot contain ..', isError: true };
+    }
+
+    // Check file exists
+    if (!fs.existsSync(path)) {
+      return { result: `Error: file not found: ${path}`, isError: true };
+    }
+
+    const content = fs.readFileSync(path, 'utf-8');
+    return { result: content };
+  },
+};
+```
+
+---
+
+## Limiting Tool Output
+
+Large tool outputs can overwhelm the model's context. Truncate when necessary:
+
+```typescript
+execute: async (_id, args) => {
+  const result = await longOperation(args);
+  
+  const MAX_LENGTH = 10000;
+  if (result.length > MAX_LENGTH) {
+    return { 
+      result: result.slice(0, MAX_LENGTH) + '\n\n...(truncated, showing first 10000 chars)' 
+    };
+  }
+  
+  return { result };
+}
+```
+
+---
+
+## Respecting Cancellation
+
+Use the `signal` parameter to stop long-running operations:
+
+```typescript
+execute: async (_id, args, signal) => {
+  const response = await fetch(args.url as string, { signal });
+  
+  // For manual operations
+  if (signal?.aborted) {
+    return { result: 'Cancelled', isError: true };
+  }
+  
+  return { result: await response.text() };
+}
+```
+
+---
+
+## Streaming Updates
+
+For long operations, send progress updates:
+
+```typescript
+execute: async (_id, args, _signal, onUpdate) => {
+  const files = await listFiles(args.directory);
+  
+  for (let i = 0; i < files.length; i++) {
+    onUpdate?.({ 
+      progress: `Processing ${i + 1}/${files.length}` 
+    });
+    await processFile(files[i]);
+  }
+  
+  return { result: `Processed ${files.length} files` };
+}
+```
+
+<Note>
+The `onUpdate` callback emits `tool.update` events that you can handle in your UI.
+</Note>
+
+---
+
+## Error Patterns
+
+### Recoverable vs Fatal Errors
+
+```typescript
+execute: async (_id, args) => {
+  try {
+    return { result: await primaryMethod(args) };
+  } catch (primaryError) {
+    // Try fallback
+    try {
+      return { result: await fallbackMethod(args) };
+    } catch (fallbackError) {
+      // Now it's fatal
+      return { 
+        result: `Error: ${fallbackError.message}`, 
+        isError: true 
+      };
+    }
+  }
+}
+```
+
+### Structured Error Messages
+
+Give the model actionable information:
+
+```typescript
+execute: async (_id, args) => {
+  try {
+    return { result: await doThing(args) };
+  } catch (error) {
+    return {
+      result: JSON.stringify({
+        error: error.message,
+        suggestion: 'Try using a different file format',
+        alternatives: ['json', 'yaml'],
+      }),
+      isError: true,
+    };
+  }
+}
+```
+
+---
+
+## Tool Composition
+
+For complex operations, compose multiple tools:
+
+```typescript
+// Simple focused tools
+const listDirTool: AgentTool = { /* ... */ };
+const readFileTool: AgentTool = { /* ... */ };
+const applyPatchTool: AgentTool = { /* ... */ };
+
+// Let the model compose them
+const stream = agentLoop(
+  [{ type: 'text', text: 'Find and summarize README files' }],
+  {
+    model: 'gemini-3-flash-preview',
+    tools: [listDirTool, readFileTool, applyPatchTool],
+    systemInstruction: 'You can use list_dir, read_file, and apply_patch to work with files.',
+  }
+);
+```
+
+<Tip>
+Let the model compose tools rather than creating a single complex tool. This is more flexible and easier to test.
+</Tip>
+
+---
+
+## Testing Tools
+
+Test tools in isolation before using with the agent:
+
+```typescript
+// tool.test.ts
+import { describe, test, expect } from 'bun:test';
+import { readFileTool } from './tools';
+
+describe('readFileTool', () => {
+  test('reads existing file', async () => {
+    const result = await readFileTool.execute('test', { path: './package.json' });
+    expect(result.isError).toBeFalsy();
+    expect(result.result).toContain('name');
+  });
+
+  test('returns error for missing file', async () => {
+    const result = await readFileTool.execute('test', { path: './nonexistent.txt' });
+    expect(result.isError).toBe(true);
+    expect(result.result).toContain('Error');
+  });
+});
+```
+
+---
+
+## Next Steps
+
+- [Streaming Guide](/guides/streaming/): Handle tool events in your UI
+- [Hooks](/concepts/hooks/): Intercept tool calls with beforeToolExecute

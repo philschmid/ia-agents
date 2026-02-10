@@ -1,0 +1,237 @@
+---
+title: Quickstart
+description: Build your first agent in 5 minutes
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import Tip from '../../components/callouts/Tip.astro';
+
+This quickstart walks you through building AI agents, from the basic loop to production-ready patterns.
+
+
+<Tip>
+Start with [`agents-core`](/packages/agents-core/) for maximum control, upgrade to [`agent`](/packages/agent/) when you need hooks and built-in tools.
+</Tip>
+
+
+## Prerequisites
+
+- Node.js 18+ or [Bun](https://bun.sh)
+- A [Gemini API key](https://aistudio.google.com/app/apikey)
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+```
+
+
+## 1. Core Agent Loop
+
+The `@philschmid/agents-core` package provides the foundational primitives for building agents.
+
+<Tabs>
+  <TabItem label="bun">
+    ```bash
+    bun add @philschmid/agents-core
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @philschmid/agents-core
+    ```
+  </TabItem>
+</Tabs>
+
+<Steps>
+
+1. **Basic agent loop**
+
+   The simplest way to run an agent, a single turn with tool calling:
+
+   ```typescript title="basic.ts"
+   import { agentLoop, printStream } from '@philschmid/agents-core';
+
+   const stream = agentLoop(
+     [{ type: 'text', text: 'What is 2 + 2?' }],
+     { model: 'gemini-3-flash-preview' }
+   );
+
+   await printStream(stream, { verbosity: 'verbose' });
+   ```
+
+2. **Add a custom tool**
+
+   Tools give your agent the ability to take action:
+
+   ```typescript title="with-tool.ts"
+   import { agentLoop, printStream, type AgentTool } from '@philschmid/agents-core';
+   import * as fs from 'node:fs';
+
+   const listDirTool: AgentTool = {
+     name: 'list_dir',
+     label: 'List Directory',
+     description: 'Lists the contents of a directory.',
+     parameters: {
+       type: 'object',
+       properties: {
+         path: { type: 'string', description: 'Directory path' },
+       },
+       required: ['path'],
+     },
+     execute: async (_id, args) => {
+       const items = fs.readdirSync(args.path as string);
+       return { result: items.join(', ') };
+     },
+   };
+
+   const stream = agentLoop(
+     [{ type: 'text', text: 'List files in the current directory' }],
+     { model: 'gemini-3-flash-preview', tools: [listDirTool] }
+   );
+
+   await printStream(stream, { verbosity: 'verbose' });
+   ```
+
+3. **Multi-turn with agentLoop**
+
+   Chain interactions using `previousInteractionId` for context:
+
+   ```typescript title="multi-turn.ts"
+   import { agentLoop, printStream } from '@philschmid/agents-core';
+
+   // Turn 1
+   const stream1 = agentLoop(
+     [{ type: 'text', text: 'My name is Alice.' }],
+     { model: 'gemini-3-flash-preview', systemInstruction: 'Be concise.' }
+   );
+   await printStream(stream1);
+   const result1 = await stream1.result();
+
+   // Turn 2 - maintains context via previousInteractionId
+   const stream2 = agentLoop(
+     [{ type: 'text', text: 'What is my name?' }],
+     { 
+       model: 'gemini-3-flash-preview',
+       previousInteractionId: result1.interactionId,
+     }
+   );
+   await printStream(stream2);
+   ```
+
+   For a higher-level multi-turn API with queue management, see [`AgentSession`](/concepts/session/) in the `@philschmid/agent` package.
+
+</Steps>
+
+---
+
+## 2. Agent SDK
+
+The `@philschmid/agent` package builds on `agents-core` with:
+- **Built-in tools:** File operations, bash, web search, etc.
+- **Hooks:** Intercept and control agent behavior
+- **Skills & subagents:** Extend with specialized capabilities
+
+<Tabs>
+  <TabItem label="bun">
+    ```bash
+    bun add @philschmid/agent
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @philschmid/agent
+    ```
+  </TabItem>
+</Tabs>
+
+<Steps>
+
+1. **Use built-in tools**
+
+   Use pre-built tools by name, no need to define them manually:
+
+   ```typescript title="builtin-tools.ts"
+   import { createAgentSession } from '@philschmid/agent';
+   import { printStream } from '@philschmid/agents-core';
+
+   const session = createAgentSession({
+     model: 'gemini-3-flash-preview',
+     tools: ['read', 'write', 'bash'],
+   });
+
+   session.send('List files in src/ and show the first one');
+   await printStream(session.stream(), { verbosity: 'verbose' });
+   ```
+
+   Available tools: `read`, `write`, `bash`, `grep`, `web_search`, `web_fetch`, `sleep`, `plan`, `skills`, `subagent`
+
+2. **Add hooks for control**
+
+   Hooks let you intercept and control agent behavior:
+
+   ```typescript title="with-hooks.ts"
+   import { createAgentSession } from '@philschmid/agent';
+
+   const session = createAgentSession({
+     model: 'gemini-3-flash-preview',
+     tools: ['bash', 'read'],
+   });
+
+   // Block dangerous commands
+   session.on('beforeToolExecute', (event) => {
+     if (event.toolName === 'bash') {
+       const cmd = event.arguments.command as string;
+       if (cmd.includes('rm -rf')) {
+         console.log(`🚫 Blocked: ${cmd}`);
+         return { allow: false, reason: 'Destructive command blocked' };
+       }
+     }
+     console.log(`✅ Executing: ${event.toolName}`);
+     return { allow: true };
+   });
+
+   // Log results
+   session.on('afterToolExecute', (event) => {
+     console.log(`📤 Result: ${event.result.result?.slice(0, 100)}...`);
+     return {};
+   });
+
+   session.send('Show system info');
+   for await (const event of session.stream()) {
+     if (event.type === 'text.delta') process.stdout.write(event.delta);
+   }
+   ```
+
+3. **Load skills & subagents**
+
+   Skills and subagents extend your agent with specialized capabilities. Add them as tool names and they load automatically from `.agent/`:
+
+   ```typescript title="with-skills.ts"
+   import { createAgentSession } from '@philschmid/agent';
+
+   const session = createAgentSession({
+     model: 'gemini-3-flash-preview',
+     tools: ['read', 'write', 'skills', 'subagent'],
+   });
+
+   session.send('Use the documentation skill to explain hooks');
+   ```
+
+   Skills are YAML+markdown files in `.agent/skills/<name>/SKILL.md`:
+
+   ```yaml title=".agent/skills/docs/SKILL.md"
+   ---
+   name: documentation
+   description: Query project documentation
+   ---
+
+   You have access to the project docs. Use them to answer questions...
+   ```
+
+</Steps>
+
+## Next Steps
+
+- [Hooks](/concepts/hooks/): Deep dive into lifecycle interception
+- [Configuration](/guides/configuration/): Environment and settings
+- [Skills](/concepts/skills/): Load specialized capabilities
+- [Subagents](/concepts/subagents/): Delegate to specialized agents

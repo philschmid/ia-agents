@@ -1,0 +1,103 @@
+---
+title: Skills
+description: Reusable instruction packages for agent capabilities
+---
+
+Skills are reusable instruction packages that teach agents how to perform specific tasks. They follow the **YAML frontmatter + Markdown body** pattern.
+
+## Using with AgentSession
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'skills'],  // Enable skills tool
+});
+
+session.send('Use the code-review skill to analyze src/index.ts');
+```
+
+## Configuration
+
+```bash
+export AGENT_ARTIFACTS_PATH=".agent"
+```
+
+Or in `settings.json`:
+
+```json
+{
+  "artifactsPath": ".agent"
+}
+```
+
+## Directory Structure
+
+```
+.agent/
+└── skills/
+    └── my-skill/
+        └── SKILL.md
+```
+
+## SKILL.md Format
+
+```markdown
+---
+name: code-reviewer
+description: Reviews code for quality, security, and best practices
+---
+
+You are an expert code reviewer. When reviewing code:
+
+## Review Checklist
+1. Check for security vulnerabilities
+2. Verify error handling
+3. Review naming conventions
+```
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Unique identifier (used for loading) |
+| `description` | string | Brief summary (used for skill selection) |
+
+## Loading Skills
+
+```typescript
+import { loadSkills } from '@philschmid/agent';
+
+// Load from default path (.agent/skills/)
+const skills = loadSkills();
+
+// Load from custom path
+const skills = loadSkills('/path/to/artifacts');
+```
+
+### Skill Type
+
+```typescript
+type Skill = {
+  name: string;        // From frontmatter
+  description: string; // From frontmatter
+  content: string;     // Markdown body
+  path: string;        // Directory path
+};
+```
+
+## Best Practices
+
+1. **Keep frontmatter minimal**: Only `name` and `description`
+2. **Use clear, specific descriptions**: Helps with skill selection
+3. **Structure the body**: Use headings, lists, and code blocks
+4. **Bundle resources**: Include scripts or templates in the skill directory
+
+---
+
+## Next Steps
+
+- [Subagents](/concepts/subagents/): Delegate to specialized agents
+- [Session](/concepts/session/): Multi-turn conversations with skills
+- [Built-in Tools](/concepts/built-in-tools/): All available tools

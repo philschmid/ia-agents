@@ -1,0 +1,219 @@
+---
+title: Built-in Tools
+description: Using the pre-built tools from @philschmid/agent
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import Warning from '../../../components/callouts/Warning.astro';
+
+The `@philschmid/agent` package includes ready-to-use tools for common tasks. This guide shows different ways to use them.
+
+---
+
+## Quick Reference
+
+| Name | Description |
+|------|-------------|
+| `read` | Read file contents and list directories |
+| `write` | Create new files and patch existing files |
+| `grep` | Search files with regex |
+| `bash` | Execute shell commands |
+| `sleep` | Pause execution for up to 60 seconds |
+| `plan` | Track task progress with step statuses (`pending`, `in_progress`, `completed`) |
+| `web_search` | Search the web |
+| `web_fetch` | Fetch and convert web pages to markdown |
+| `skills` | Load and use skills from `.agent/skills/` |
+| `subagent` | Delegate tasks to subagents from `.agent/subagents/` |
+
+
+---
+
+## Using AgentSession (Recommended)
+
+The simplest way to use built-in tools, just pass tool names as strings:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'bash'],
+});
+
+session.send('Read the package.json and tell me the version');
+
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+---
+
+## Using agentLoop (One-shot)
+
+For single-turn execution without session state, use `agentLoop` with `getTools()`:
+
+```typescript
+import { agentLoop, printStream } from '@philschmid/agents-core';
+import { getTools } from '@philschmid/agent';
+
+const tools = getTools(['read', 'grep']);
+
+const stream = agentLoop(
+  [{ type: 'text', text: 'Find all TypeScript files and count them' }],
+  { 
+    model: 'gemini-3-flash-preview', 
+    tools,
+  }
+);
+
+await printStream(stream, { verbosity: 'verbose' });
+```
+
+---
+
+## Example: Editor Tools
+
+File operations with read, write, and grep:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  systemInstruction: 'You are a helpful file assistant.',
+  tools: ['read', 'write', 'grep'],
+});
+
+session.send('List all .ts files and find ones that import "fs"');
+
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+Run: `bun examples/agent/editor-tools.ts`
+
+---
+
+## Example: Shell Tools
+
+Execute shell commands with bash:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  systemInstruction: 'You are a shell assistant. Execute commands safely.',
+  tools: ['bash', 'read'],
+});
+
+session.send('Check disk usage and show the top 5 largest directories');
+
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+Run: `bun examples/agent/shell-tools.ts`
+
+<Warning>
+The `bash` tool executes real commands. Use hooks to block dangerous operations.
+</Warning>
+
+---
+
+## Example: Web Tools
+
+Search and fetch web content:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['web_search', 'web_fetch'],
+});
+
+session.send('Search for the latest Next.js version and summarize the changelog');
+
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+Run: `bun examples/agent/web-tools.ts`
+
+---
+
+## Example: All Tools Combined
+
+Use all available tools for a full-featured agent:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'grep', 'bash', 'web_search', 'web_fetch', 'skills', 'subagent'],
+});
+
+session.send('Read my package.json, search for the latest version of each dependency, and update them');
+
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+Run: `bun examples/agent/all-tools.ts`
+
+---
+
+## Adding Hooks for Safety
+
+Combine built-in tools with hooks to add safety controls:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['bash', 'write'],
+});
+
+// Block dangerous commands
+session.on('beforeToolExecute', (event) => {
+  if (event.toolName === 'bash') {
+    const cmd = event.arguments.command as string;
+    if (/rm\s+-rf/.test(cmd)) {
+      return { allow: false, reason: 'Destructive command blocked' };
+    }
+  }
+  return { allow: true };
+});
+
+// Log all tool calls
+session.on('afterToolExecute', (event) => {
+  console.log(`[${event.toolName}] completed`);
+  return {};
+});
+```
+
+---
+
+## Next Steps
+
+- [Tools Concept](/concepts/tools/): How tools work and how to create custom ones
+- [Hooks Concept](/concepts/hooks/): Add safety controls and logging
+- [Tool Calling Guide](/guides/tool-calling/): Advanced patterns

@@ -1,0 +1,135 @@
+---
+title: Subagents
+description: Specialized agents for delegated task execution
+---
+
+import Tip from '../../../components/callouts/Tip.astro';
+import Warning from '../../../components/callouts/Warning.astro';
+
+Subagents are specialized agents that handle delegated tasks with their own context, tools, and system prompts.
+
+## Using with AgentSession
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'bash', 'subagent'],  // Enable subagent tool
+});
+
+session.send('Delegate the documentation task to the docs-writer subagent');
+```
+
+## Configuration
+
+```bash
+export AGENT_ARTIFACTS_PATH=".agent"
+```
+
+## Directory Structure
+
+```
+.agent/
+└── subagents/
+    ├── code-reviewer.md
+    ├── api-designer.md
+    └── test-writer.md
+```
+
+## Subagent Format
+
+```markdown
+---
+name: code-reviewer
+description: Reviews code for quality, security, and best practices
+tools:
+  - read
+  - grep
+skills:
+  - code-standards
+model: gemini-2.5-pro
+---
+
+You are an expert code reviewer with deep experience in:
+- Security vulnerability detection
+- Performance optimization
+- Code style and maintainability
+
+## Review Process
+1. Read the file under review
+2. Search for related code with grep
+3. Identify issues and improvements
+```
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Unique identifier |
+| `description` | string | Brief summary of the subagent's purpose |
+
+### Optional Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tools` | string[] | List of tool names the subagent can use |
+| `skills` | string[] | Skills to load for this subagent |
+| `model` | string | Override the default model |
+
+## Loading Subagents
+
+```typescript
+import { loadSubagents } from '@philschmid/agent';
+
+// Load from default path (.agent/subagents/)
+const subagents = loadSubagents();
+
+// Load from custom path
+const subagents = loadSubagents('/path/to/artifacts');
+```
+
+### Subagent Type
+
+```typescript
+type Subagent = {
+  name: string;         // From frontmatter
+  description: string;  // From frontmatter
+  tools?: string[];     // Tool names to enable
+  skills?: string[];    // Skill names to load
+  model?: string;       // Model override
+  content: string;      // System instruction (body)
+  path: string;         // File path
+};
+```
+
+## Skills vs Subagents
+
+| Aspect | Skills | Subagents |
+|--------|--------|-----------|
+| **Purpose** | Teach the current agent procedures | Separate worker with own context |
+| **Context** | Shares parent context | Isolated context window |
+| **Tools** | Uses parent's tools | Can have restricted tool access |
+| **Model** | Same as parent | Can use different model |
+| **Format** | Directory with `SKILL.md` | Single `.md` file |
+
+<Warning>
+Use **skills** when you want to add knowledge to the current agent.
+Use **subagents** when you need isolation or specialized capabilities.
+</Warning>
+
+## Best Practices
+
+1. **Limit tool access**: Give subagents only the tools they need
+2. **Clear system prompts**: Write specific, focused instructions
+3. **Use skills for shared knowledge**: Reference skills instead of duplicating
+4. **Choose appropriate models**: Use faster models for simple tasks
+5. **Define output formats**: Specify how results should be structured
+
+---
+
+## Next Steps
+
+- [Skills](/concepts/skills/): Reusable instruction packages
+- [Session](/concepts/session/): Multi-turn conversations with subagents
+- [Hooks](/concepts/hooks/): Intercept subagent delegations

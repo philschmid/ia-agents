@@ -1,0 +1,313 @@
+---
+title: Session
+description: Multi-turn agent sessions with hooks and built-in tools
+---
+
+import Note from '../../../components/callouts/Note.astro';
+
+The `AgentSession` class provides multi-turn agent conversations with hooks, built-in tools, and extensibility.
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'bash'],
+  systemInstruction: 'You are a helpful coding assistant.',
+});
+
+session.send('List files in src/');
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+---
+
+## Creating a Session
+
+Use `createAgentSession()` or `new AgentSession()`:
+
+```typescript
+import { createAgentSession, AgentSession } from '@philschmid/agent';
+
+// Factory function (recommended)
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'bash'],
+});
+
+// Or direct instantiation
+const session = new AgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'bash'],
+});
+```
+
+### Options
+
+```typescript
+type AgentSessionOptions = {
+  model: string;                    // Required: model ID
+  tools?: ToolName[];               // Built-in tool names (default: from config)
+  systemInstruction?: string;       // System prompt
+  maxInjectionLoops?: number;       // Max onAgentEnd loops (default: 3)
+  cwd?: string;                     // Working directory for file tools (default: process.cwd())
+};
+```
+
+---
+
+## Working Directory
+
+Set `cwd` to specify the working directory for file-based tools. This is useful when the agent operates on a project that isn't in the current process directory.
+
+```typescript
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  cwd: '/path/to/project',  // All file tools use this as base directory
+  tools: ['read', 'write', 'bash'],
+});
+
+// cwd is immutable after creation
+console.log(session.cwd); // '/path/to/project'
+```
+
+<Note>
+The `cwd` option affects all file-based tools: `read_file`, `list_directory`, `write_file`, `apply_patch`, `bash`, and `grep`. Relative paths in tool arguments are resolved from this directory.
+</Note>
+
+---
+
+## send() and stream()
+
+The session uses a **pull-based** design:
+
+| Method | What it does |
+|--------|-------------|
+| `send(input)` | **Queues** a message: no API calls happen |
+| `stream()` | **Processes** the queue: runs the agent loop |
+
+<Note>
+Calling `send()` without `stream()` does nothing. The message sits in a queue. All work (API calls, tool execution, hooks) happens when you iterate `stream()`.
+</Note>
+
+```typescript
+// Queue message
+session.send('Analyze this code');
+
+// Process and stream events
+for await (const event of session.stream()) {
+  switch (event.type) {
+    case 'text.delta':
+      process.stdout.write(event.delta);
+      break;
+    case 'tool.start':
+      console.log(`Tool: ${event.name}`);
+      break;
+  }
+}
+```
+
+### Multi-turn Conversations
+
+```typescript
+// First turn
+session.send('List files');
+for await (const event of session.stream()) { /* ... */ }
+
+// Second turn - maintains context
+session.send('Now read package.json');
+for await (const event of session.stream()) { /* ... */ }
+```
+
+---
+
+## Using Built-in Tools
+
+Specify tools by name:
+
+```typescript
+const session = createAgentSession({
+  tools: ['read', 'write', 'bash', 'grep'],
+});
+```
+
+| Name | Tool(s) | Description |
+|------|---------|-------------|
+| `read` | `read_file`, `list_directory` | Read files and list directories |
+| `write` | `write_file`, `apply_patch` | Create new files and patch existing files |
+| `bash` | `bash` | Execute shell commands |
+| `grep` | `grep` | Search file contents with regex patterns |
+| `sleep` | `sleep` | Pause execution for up to 60 seconds |
+| `plan` | `update_plan` | Track task progress with step statuses |
+| `web_search` | `web_search` | Search the web |
+| `web_fetch` | `web_fetch` | Fetch and convert web pages to markdown |
+| `skills` | `skills` | Load skills from `.agent/skills/` |
+| `subagent` | `subagent` | Delegate to subagents from `.agent/subagents/` |
+
+---
+
+## Adding Hooks
+
+Register hooks with `.on()`:
+
+```typescript
+const session = createAgentSession({
+  tools: ['read', 'bash'],
+});
+
+// Log all tool calls
+session.on('beforeToolExecute', (event) => {
+  console.log(`[TOOL] ${event.toolName}(${JSON.stringify(event.arguments)})`);
+  return { allow: true };
+});
+
+// Block destructive commands
+session.on('beforeToolExecute', (event) => {
+  if (event.toolName === 'bash') {
+    const cmd = event.arguments.command as string;
+    if (cmd.includes('rm -rf')) {
+      return { allow: false, reason: 'Blocked' };
+    }
+  }
+  return { allow: true };
+});
+
+// Inject follow-up after completion
+session.on('onAgentEnd', (event) => {
+  if (event.interactionCount < 2) {
+    return { input: 'Now verify your changes.' };
+  }
+  return {};
+});
+```
+
+Hooks are chainable:
+
+```typescript
+session
+  .on('beforeToolExecute', logHandler)
+  .on('beforeToolExecute', approvalHandler)
+  .on('onAgentEnd', verifyHandler);
+```
+
+---
+
+## Using Skills
+
+Include the `skills` tool to load skill artifacts:
+
+```typescript
+const session = createAgentSession({
+  tools: ['read', 'bash', 'skills'],
+  systemInstruction: 'You have access to skills for specialized tasks.',
+});
+```
+
+Skills are loaded from `.agent/skills/` directories. Each skill has a `SKILL.md` with instructions.
+
+```typescript
+session.send('Use the code-review skill to analyze src/index.ts');
+```
+
+---
+
+## Using Subagents
+
+Include the `subagent` tool to delegate tasks:
+
+```typescript
+const session = createAgentSession({
+  tools: ['read', 'bash', 'subagent'],
+});
+```
+
+Subagents are loaded from `.agent/subagents/` files. Each subagent has specialized capabilities.
+
+```typescript
+session.send('Delegate the documentation task to the docs-writer subagent');
+```
+
+---
+
+## Event Types
+
+The session emits events during streaming:
+
+| Event | Description |
+|-------|-------------|
+| `agent.start` | Agent loop begins |
+| `interaction.start` | LLM call begins |
+| `text.delta` | Streaming text chunk |
+| `tool.start` | Tool execution begins |
+| `tool.end` | Tool execution completes |
+| `interaction.end` | LLM call completes |
+| `agent.end` | Agent loop finishes |
+
+```typescript
+for await (const event of session.stream()) {
+  switch (event.type) {
+    case 'text.delta':
+      process.stdout.write(event.delta);
+      break;
+    case 'tool.start':
+      console.log(`Starting: ${event.name}`);
+      break;
+    case 'tool.end':
+      console.log(`Completed: ${event.name}`);
+      break;
+    case 'agent.end':
+      console.log('Done!', event.result);
+      break;
+  }
+}
+```
+
+---
+
+## Full Example
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'bash', 'skills'],
+  systemInstruction: 'You are a senior developer. Write clean, tested code.',
+});
+
+// Add safety hooks
+session.on('beforeToolExecute', (event) => {
+  console.log(`[${event.toolName}] ${JSON.stringify(event.arguments)}`);
+  
+  // Block dangerous operations
+  if (event.toolName === 'bash') {
+    const cmd = event.arguments.command as string;
+    if (cmd.includes('rm -rf /') || cmd.includes('sudo')) {
+      return { allow: false, reason: 'Blocked for safety' };
+    }
+  }
+  return { allow: true };
+});
+
+// Run the session
+session.send('Create a simple HTTP server in src/server.ts');
+
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+---
+
+## Next Steps
+
+- [Hooks](/concepts/hooks/): Deep dive into lifecycle hooks
+- [Built-in Tools](/concepts/built-in-tools/): All available tools
+- [Skills](/concepts/skills/): Load specialized capabilities
+- [Subagents](/concepts/subagents/): Delegate to specialized agents

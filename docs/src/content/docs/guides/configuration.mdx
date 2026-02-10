@@ -1,0 +1,104 @@
+---
+title: "Configuration"
+description: "Configure ia-agents using environment variables or settings.json"
+---
+
+import { Steps, LinkCard, CardGrid } from '@astrojs/starlight/components';
+import Tip from '../../../components/callouts/Tip.astro';
+
+Configure your agents using environment variables or a `settings.json` file. Environment variables take priority, making it easy to override settings per-environment.
+
+---
+
+## Quick Start
+
+Set your model and tools with environment variables:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+export AGENT_DEFAULT_MODEL="gemini-3-flash-preview"
+export AGENT_DEFAULT_TOOLS="read,write,bash"
+```
+
+Or create a `settings.json` in your project root:
+
+```json
+{
+  "defaultModel": "gemini-3-flash-preview",
+  "maxIterations": 100,
+  "defaultTools": ["read", "write", "bash", "grep"]
+}
+```
+
+---
+
+## Environment Variables
+
+| Variable | Type | Default | Description |
+|:---------|:-----|:--------|:------------|
+| `GEMINI_API_KEY` | `string` | — | **Required.** Your Gemini API key |
+| `AGENT_DEFAULT_MODEL` | `string` | `gemini-3-flash-preview` | Model to use for agent interactions |
+| `AGENT_MAX_ITERATIONS` | `number` | `100` | Maximum loop iterations (prevents runaway agents) |
+| `AGENT_DEFAULT_TOOLS` | `string` | All tools | Comma-separated list of tool names |
+| `AGENT_SETTINGS_PATH` | `string` | `./settings.json` | Path to settings file |
+
+<Tip>
+Environment variables override `settings.json` values. This lets you use a base config file while customizing per-environment.
+</Tip>
+
+---
+
+## Settings File
+
+Create `settings.json` in your project root or specify a custom path with `AGENT_SETTINGS_PATH`.
+
+### Full Example
+
+```json
+{
+  "defaultModel": "gemini-3-flash-preview",
+  "maxIterations": 100,
+  "defaultTools": [
+    "sleep",
+    "plan",
+    "read",
+    "write",
+    "grep",
+    "bash",
+    "web_fetch",
+    "web_search"
+  ]
+}
+```
+
+### Schema
+
+| Field | Type | Default | Description |
+|:------|:-----|:--------|:------------|
+| `defaultModel` | `string` | `gemini-3-flash-preview` | Model identifier for API calls |
+| `maxIterations` | `number` | `100` | Maximum agent loop iterations |
+| `defaultTools` | `string[]` | All tools | Tools to load when none specified |
+
+---
+
+## Priority Order
+
+Configuration values are resolved in this order (first wins):
+
+1. **Environment variables**: `AGENT_*` prefixed vars
+2. **settings.json**: Values from the JSON file
+3. **Defaults**: Built-in default values
+
+```bash
+# Environment variable wins over settings.json
+export AGENT_DEFAULT_MODEL="gemini-3-pro"  # Uses this, not settings.json
+```
+
+---
+
+## Next Steps
+
+<CardGrid>
+  <LinkCard title="Agent Loop" href="/concepts/agent-loop" description="How the core loop works" />
+  <LinkCard title="Built-in Tools" href="/concepts/built-in-tools" description="Available tools reference" />
+</CardGrid>

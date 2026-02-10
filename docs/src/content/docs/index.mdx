@@ -1,0 +1,43 @@
+---
+title: ia-agents
+description: Minimal agent framework for the Gemini Interactions API
+template: doc
+
+---
+
+import { Card, CardGrid, LinkCard, TabItem } from '@astrojs/starlight/components';
+import Hero from '../../components/Hero.astro';
+import CodeTabs from '../../components/CodeTabs.astro';
+import Tip from '../../components/callouts/Tip.astro';
+import Note from '../../components/callouts/Note.astro';
+
+<Hero>
+  <span slot="title">IA Agents</span>
+  <span slot="description">Minimal agent framework for the Gemini Interactions API</span>
+  <span slot="cta">Get started</span>
+</Hero>
+
+An **agent** is an LLM running in a loop with tools it can use. The loop continues until the model produces a response without tool calls.
+
+**ia-agents** provides the orchestration layer on top of the [Gemini Interactions API](https://ai.google.dev/gemini-api/docs/interactions) — handling the full loop: model calls, tool execution, result submission, and streaming events.
+
+
+<Tip title="New to Agents?">
+Start with the [Quickstart](/quickstart) to get your first agent running in 5 minutes.
+</Tip>
+
+## Packages
+
+| Package | What it provides | Use when |
+|---------|------------------|----------|
+| [`@philschmid/agents-core`](/packages/agents-core/) | Raw agent loop, tool execution | You want minimal overhead and full control |
+| [`@philschmid/agent`](/packages/agent/) | Hooks, built-in tools, skills, subagents | You want lifecycle control and batteries-included |
+
+## Next Steps
+
+<CardGrid>
+  <LinkCard title="Quickstart" href="/quickstart/" description="Get running in 5 minutes" />
+  <LinkCard title="agents-core" href="/agents-core/" description="Minimal agent loop" />
+  <LinkCard title="agent" href="/agent/" description="Hooks and built-in tools" />
+  <LinkCard title="Hooks" href="/concepts/hooks/" description="Intercept lifecycle events" />
+</CardGrid>

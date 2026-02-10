@@ -1,0 +1,234 @@
+---
+title: Streaming Guide
+description: Handle agent events in real-time
+---
+
+import Warning from '../../../components/callouts/Warning.astro';
+
+The agent loop returns an async generator that yields events as they happen. Use these to build responsive UIs.
+
+## Event Types
+
+| Event | Description |
+|-------|-------------|
+| `agent.start` | Agent loop begins |
+| `interaction.start` | LLM call begins |
+| `thought.summary` | Model reasoning (if available) |
+| `text.delta` | Streaming text chunk |
+| `tool.start` | Tool execution begins |
+| `tool.delta` | Tool progress update |
+| `tool.end` | Tool execution completes |
+| `interaction.end` | LLM call completes |
+| `agent.end` | Agent loop finishes with result |
+
+---
+
+## Basic Consumption
+
+```typescript
+import { agentLoop } from '@philschmid/agents-core';
+
+const stream = agentLoop(input, config);
+
+for await (const event of stream) {
+  switch (event.type) {
+    case 'text.delta':
+      process.stdout.write(event.delta);
+      break;
+    case 'tool.start':
+      console.log(`\nCalling: ${event.name}`);
+      break;
+    case 'agent.end':
+      console.log('\nDone!');
+      break;
+  }
+}
+```
+
+---
+
+## Event Details
+
+### text.delta
+
+Streaming text from the model:
+
+```typescript
+case 'text.delta':
+  // event.delta is a string chunk
+  process.stdout.write(event.delta);
+  break;
+```
+
+### tool.start
+
+Tool execution begins:
+
+```typescript
+case 'tool.start':
+  // event.name - tool name
+  // event.id - unique tool call ID
+  // event.arguments - parsed args
+  console.log(`Tool: ${event.name}(${JSON.stringify(event.arguments)})`);
+  break;
+```
+
+### tool.end
+
+Tool execution completes:
+
+```typescript
+case 'tool.end':
+  // event.name - tool name
+  // event.result - AgentToolResult
+  const preview = event.result.result.slice(0, 100);
+  console.log(`Result: ${preview}`);
+  break;
+```
+
+### agent.end
+
+Agent loop finishes:
+
+```typescript
+case 'agent.end':
+  // event.interactions - all conversation turns
+  // event.interactionId - final interaction ID
+  // event.usage - token usage statistics
+  console.log(`Done! ${event.interactions.length} turns`);
+  break;
+```
+
+---
+
+## Helper: printStream
+
+For quick prototyping, use the built-in printer:
+
+```typescript
+import { printStream } from '@philschmid/agents-core';
+
+const result = await printStream(stream, { verbosity: 'verbose' });
+```
+
+### Verbosity Levels
+
+| Level | Shows |
+|-------|-------|
+| `'minimal'` | Text only |
+| `'normal'` | Text + tool names |
+| `'verbose'` | Text + full tool details |
+
+---
+
+## Collecting Events
+
+Collect all events for later processing:
+
+```typescript
+const events: AgentEvent[] = [];
+
+for await (const event of stream) {
+  events.push(event);
+}
+
+// Find all tool calls
+const toolCalls = events.filter(e => e.type === 'tool.start');
+console.log(`Made ${toolCalls.length} tool calls`);
+
+// Get final result
+const endEvent = events.find(e => e.type === 'agent.end');
+console.log('Result:', endEvent?.result);
+```
+
+---
+
+## UI Integration
+
+### React Example
+
+```tsx
+function AgentOutput({ stream }) {
+  const [text, setText] = useState('');
+  const [tools, setTools] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      for await (const event of stream) {
+        switch (event.type) {
+          case 'text.delta':
+            setText(prev => prev + event.delta);
+            break;
+          case 'tool.start':
+            setTools(prev => [...prev, event.name]);
+            break;
+        }
+      }
+    })();
+  }, [stream]);
+
+  return (
+    <div>
+      <div className="tools">
+        {tools.map((tool, i) => <span key={i}>🔧 {tool}</span>)}
+      </div>
+      <div className="text">{text}</div>
+    </div>
+  );
+}
+```
+
+### Terminal Progress
+
+```typescript
+for await (const event of stream) {
+  switch (event.type) {
+    case 'tool.start':
+      process.stdout.write(`\r⏳ ${event.name}...`);
+      break;
+    case 'tool.end':
+      process.stdout.write(`\r✅ ${event.name}\n`);
+      break;
+    case 'text.delta':
+      process.stdout.write(event.delta);
+      break;
+  }
+}
+```
+
+---
+
+## Cancellation
+
+Abort a running agent:
+
+```typescript
+const controller = new AbortController();
+
+// Start agent
+const stream = agentLoop(input, { ...config, signal: controller.signal });
+
+// Cancel after 10 seconds
+setTimeout(() => controller.abort(), 10000);
+
+try {
+  for await (const event of stream) {
+    // Handle events
+  }
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Agent cancelled');
+  }
+}
+```
+
+<Warning>
+When cancelled, tool executions in progress will receive the abort signal. Make sure your tools handle this gracefully.
+</Warning>
+
+---
+
+## Next Steps
+
+- [Tool Calling Guide](/guides/tool-calling/): Implement tools with streaming updates
+- [Examples](/examples/): See streaming in real applications

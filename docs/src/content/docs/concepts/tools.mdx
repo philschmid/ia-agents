@@ -1,0 +1,351 @@
+---
+title: Tools
+description: Defining and implementing agent tools
+---
+
+import Tip from '../../../components/callouts/Tip.astro';
+import Warning from '../../../components/callouts/Warning.astro';
+
+Tools give your agent the ability to take action — read files, execute code, call APIs, or anything else that requires interaction with the world.
+
+## What is a Tool?
+
+A tool is a function that:
+1. Has a **schema** describing what it does and what arguments it accepts
+2. Has an **execute** function that performs the action
+3. Returns a **result** that gets sent back to the model
+
+The model sees the schema and decides when to call the tool. You implement the execution.
+
+---
+
+## AgentTool Interface
+
+```typescript
+import { type AgentTool } from '@philschmid/agents-core';
+
+const myTool: AgentTool = {
+  // Identity
+  name: 'tool_name',           // Unique identifier
+  label: 'Human-Readable Name', // Optional display name
+  description: 'What this tool does and when to use it.',
+
+  // Schema (JSON Schema)
+  parameters: {
+    type: 'object',
+    properties: {
+      param1: { type: 'string', description: 'Description' },
+      param2: { type: 'number', description: 'Description' },
+    },
+    required: ['param1'],
+  },
+
+  // Execution
+  execute: async (toolCallId, args, signal, onUpdate) => {
+    // Perform the action
+    const result = await doSomething(args.param1);
+    return { result: JSON.stringify(result) };
+  },
+};
+```
+
+---
+
+## Using Zod Schemas (Recommended)
+
+Use the `tool()` factory function with Zod schemas for type-safe parameter validation:
+
+```typescript
+import { tool } from '@philschmid/agents-core';
+import { z } from 'zod';
+
+const readFileTool = tool({
+  name: 'read_file',
+  description: 'Reads the contents of a file at the given path.',
+  parameters: z.object({
+    path: z.string().describe('Absolute or relative path to the file'),
+    encoding: z.enum(['utf-8', 'base64']).default('utf-8').describe('File encoding'),
+  }),
+  execute: async (toolCallId, { path, encoding }) => {
+    // TypeScript knows: path is string, encoding is 'utf-8' | 'base64'
+    const content = await fs.readFile(path, encoding);
+    return { result: content };
+  },
+});
+```
+
+<Tip>
+The `tool()` function automatically converts Zod schemas to JSON Schema format for LLM compatibility.
+Your execute function gets fully typed arguments based on the Zod schema.
+</Tip>
+
+### Benefits of Zod Schemas
+
+- **Type-safe arguments**: TypeScript knows the exact types in your execute function
+- **Validation**: Zod validates arguments before execution
+- **Self-documenting**: Use `.describe()` for parameter descriptions
+- **Defaults**: Use `.default()` for optional parameters with defaults
+
+---
+
+## Execute Function
+
+The `execute` function receives four arguments:
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `toolCallId` | `string` | Unique ID for this tool call |
+| `args` | `Record<string, unknown>` | Parsed arguments from the model |
+| `signal` | `AbortSignal` | Cancellation signal |
+| `onUpdate` | `function` | Callback for streaming updates |
+
+### Return Value
+
+```typescript
+type AgentToolResult = {
+  result: string;      // Result to send to the model
+  isError?: boolean;   // Mark as error (model may retry)
+};
+```
+
+<Tip>
+Always return strings. For structured data, use `JSON.stringify()`.
+</Tip>
+
+---
+
+## Practical Examples
+
+### File System Tool
+
+```typescript
+import * as fs from 'node:fs';
+
+const readFileTool: AgentTool = {
+  name: 'read_file',
+  label: 'Read File',
+  description: 'Reads the contents of a file at the given path.',
+  parameters: {
+    type: 'object',
+    properties: {
+      path: { 
+        type: 'string', 
+        description: 'Absolute or relative path to the file' 
+      },
+    },
+    required: ['path'],
+  },
+  execute: async (_id, args) => {
+    try {
+      const content = fs.readFileSync(args.path as string, 'utf-8');
+      return { result: content };
+    } catch (error) {
+      return { 
+        result: `Error reading file: ${error.message}`, 
+        isError: true 
+      };
+    }
+  },
+};
+```
+
+### API Call Tool
+
+```typescript
+const fetchUrlTool: AgentTool = {
+  name: 'fetch_url',
+  label: 'Fetch URL',
+  description: 'Fetches content from a URL and returns the response.',
+  parameters: {
+    type: 'object',
+    properties: {
+      url: { type: 'string', description: 'URL to fetch' },
+      method: { type: 'string', enum: ['GET', 'POST'], default: 'GET' },
+    },
+    required: ['url'],
+  },
+  execute: async (_id, args, signal) => {
+    const response = await fetch(args.url as string, {
+      method: (args.method as string) || 'GET',
+      signal, // Respect cancellation
+    });
+    const text = await response.text();
+    return { result: text };
+  },
+};
+```
+
+### Shell Command Tool
+
+```typescript
+import { spawn } from 'node:child_process';
+
+const bashTool: AgentTool = {
+  name: 'bash',
+  label: 'Execute Bash',
+  description: 'Executes a bash command and returns stdout.',
+  parameters: {
+    type: 'object',
+    properties: {
+      command: { type: 'string', description: 'Command to execute' },
+    },
+    required: ['command'],
+  },
+  execute: async (_id, args) => {
+    return new Promise((resolve) => {
+      const proc = spawn('bash', ['-c', args.command as string]);
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout.on('data', (data) => (stdout += data));
+      proc.stderr.on('data', (data) => (stderr += data));
+
+      proc.on('close', (code) => {
+        if (code !== 0) {
+          resolve({ result: stderr || `Exit code: ${code}`, isError: true });
+        } else {
+          resolve({ result: stdout || '(no output)' });
+        }
+      });
+    });
+  },
+};
+```
+
+---
+
+## Writing Good Descriptions
+
+The model uses descriptions to decide when to call your tool. Be specific:
+
+| ❌ Bad | ✅ Good |
+|--------|---------|
+| `"Runs code"` | `"Executes Python code in a sandboxed environment and returns stdout"` |
+| `"Gets data"` | `"Fetches JSON data from the specified REST API endpoint"` |
+| `"File tool"` | `"Reads the contents of a text file at the given path"` |
+
+<Warning>
+Vague descriptions lead to incorrect tool calls. The model may call the wrong tool or pass wrong arguments.
+</Warning>
+
+---
+
+## Error Handling
+
+Always handle errors gracefully:
+
+```typescript
+execute: async (_id, args) => {
+  try {
+    const result = await riskyOperation(args);
+    return { result };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { 
+      result: `Error: ${message}`, 
+      isError: true 
+    };
+  }
+}
+```
+
+When `isError: true`:
+- The model sees this is an error, not a success
+- It may retry with different arguments
+- It may try a different approach
+- It may report the failure to the user
+
+---
+
+## Streaming Updates
+
+For long-running tools, send progress updates:
+
+```typescript
+execute: async (_id, args, _signal, onUpdate) => {
+  onUpdate?.({ progress: 'Starting download...' });
+  
+  const data = await downloadFile(args.url);
+  onUpdate?.({ progress: 'Processing...' });
+  
+  const result = await processData(data);
+  onUpdate?.({ progress: 'Complete' });
+  
+  return { result };
+}
+```
+
+---
+
+## Built-in Tools
+
+The `@philschmid/agent` package includes a registry of ready-to-use tools. Pass tool names directly as strings:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'bash'],  // Just pass string names
+});
+```
+
+### Available Tools
+
+| Name | Tool(s) | Description |
+|------|---------|-------------|
+| `read` | `readFileTool`, `listDirectoryTool` | Read file contents and list directories |
+| `write` | `writeFileTool`, `applyPatchTool` | Create new files and patch existing files |
+| `grep` | `grepTool` | Search file contents with regex patterns |
+| `bash` | `bashTool` | Execute shell commands |
+| `sleep` | `sleepTool` | Pause execution for up to 60 seconds |
+| `plan` | `updatePlanTool` | Track task progress with step statuses |
+| `web_search` | `webSearchTool` | Search the web using Google |
+| `web_fetch` | `webFetchTool` | Fetch and convert web pages to markdown |
+| `skills` | `createSkillTool` | Load skills from `.agent/skills/` |
+| `subagent` | `createSubagentTool` | Delegate to subagents from `.agent/subagents/` |
+
+### Using getTools() with agentLoop
+
+If you're using `agentLoop` from `agents-core` (not `AgentSession`), use `getTools()` to resolve tool names to objects:
+
+```typescript
+import { agentLoop } from '@philschmid/agents-core';
+import { getTools } from '@philschmid/agent';
+
+// Resolve string names to AgentTool objects
+const tools = getTools(['read', 'write', 'bash']);
+
+const stream = agentLoop(
+  [{ type: 'text', text: 'List files in current directory' }],
+  { 
+    model: 'gemini-3-flash-preview',
+    tools: [...tools, myCustomTool],  // AgentTool[] required here
+  }
+);
+```
+
+### Individual Tool Imports
+
+For advanced customization, import tools directly:
+
+```typescript
+import { 
+  readFileTool, 
+  bashTool, 
+  webSearchTool 
+} from '@philschmid/agent';
+```
+
+<Tip>
+With `AgentSession`, just pass string names: `tools: ['read', 'bash']`.
+Use `getTools()` only when working with the lower-level `agentLoop`.
+</Tip>
+
+---
+
+## Next Steps
+
+- [Agent Loop](/concepts/agent-loop/): How tools fit in the execution cycle
+- [Hooks](/concepts/hooks/): Intercept tool calls with `beforeToolExecute`
+- [Tool Calling Guide](/guides/tool-calling/): Advanced patterns

@@ -1,0 +1,501 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap");
+@layer base, starlight, theme, components, utilities;
+
+@import "@astrojs/starlight-tailwind";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+:root {
+  --sl-font: "Google Sans Flex";
+  --sl-font-mono: "Google Sans Flex, monospace";
+  --sl-sidebar-width: 15rem;
+  --sl-content-width: 60rem !important;
+
+  /* Text colors */
+  --sl-color-text: #ffffff;
+  --sl-color-text-muted: #9e9e9e;
+
+  /* Accent colors */
+  --sl-color-accent: #078efb;
+  --sl-color-accent-high: #bdbdbd;
+
+  /* Background colors */
+  --sl-color-bg: #121317;
+  --sl-color-hairline-shade: var(--sl-color-bg);
+  --sl-color-bg-accent: #18191d;
+  --sl-color-bg-inline-code: var(--sl-color-bg-accent);
+  --sl-color-bg-nav: var(--sl-color-bg);
+  --sl-color-bg-sidebar: var(--sl-color-bg);
+}
+
+/* Light mode colors. */
+:root[data-theme="light"] {
+  /* Text colors */
+  --sl-color-text: #353740;
+  --sl-color-text-muted: #8e8ea0;
+
+  /* Accent colors */
+  --sl-color-accent: #217bfe;
+  --sl-color-accent-high: #000000;
+
+  /* Background colors */
+  --sl-color-bg: #ffffff;
+  --sl-color-hairline-shade: var(--sl-color-bg);
+  --sl-color-bg-nav: var(--sl-color-bg);
+  --sl-color-bg-accent: #f7f7f8;
+  --sl-color-bg-inline-code: var(--sl-color-bg-accent);
+  --sl-color-bg-sidebar: var(--sl-color-bg);
+}
+
+/* Invert mermaid diagrams in light mode (they're rendered in dark theme) */
+:root[data-theme="light"] .sl-markdown-content svg[id^="mermaid"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+@layer components {
+  /* ===== LOGO ===== */
+  .sl-logo {
+    @apply !text-[color:var(--sl-color-text)];
+  }
+
+  /* ===== CONTENT PANELS ===== */
+  .content-panel:first-of-type {
+    @apply !pt-6;
+  }
+
+  .content-panel {
+    @apply !pt-0;
+  }
+
+  .content-panel + .content-panel {
+    @apply !border-t-0;
+  }
+
+  /* ===== HEADINGS ===== */
+  h1 {
+    @apply !font-bold !mt-0;
+  }
+
+  .site-title {
+    @apply !text-xl !font-semibold !text-[color:var(--sl-color-text)] !no-underline;
+  }
+
+  .social-icons::after {
+    @apply !border-none;
+  }
+
+  /* ===== MAIN PANE ===== */
+  .main-pane {
+    @apply bg-[color:var(--sl-color-bg)] rounded-tl-lg rounded-bl-lg min-h-screen;
+  }
+
+  /* ===== MARKDOWN CONTENT ===== */
+  .sl-markdown-content {
+    code:not(:where(.not-content *)) {
+      @apply !border !border-solid !border-[color:var(--sl-color-bg-accent)] !rounded-md;
+    }
+
+    a:not(:where(.not-content *)) {
+      @apply !text-[color:var(--sl-color-accent)] !no-underline;
+    }
+
+    a:hover:not(:where(.not-content *)) {
+      @apply !text-[color:var(--sl-color-accent-high)];
+    }
+
+    table:not(:where(.not-content *)) {
+      @apply text-sm;
+    }
+
+    table td code {
+      @apply whitespace-nowrap;
+    }
+
+    th:not(:where(.not-content *)) {
+      @apply uppercase !text-xs;
+
+      code {
+        @apply normal-case;
+      }
+    }
+
+    :is(th, td):not(:where(.not-content *)) {
+      @apply !border-b !border-solid !border-[color:var(--sl-color-bg-accent)];
+    }
+  }
+
+  /* ===== SEARCH ===== */
+  site-search {
+    > dialog {
+      @apply !bg-[color:var(--sl-color-bg-accent)];
+    }
+
+    > button {
+      @media (min-width: 50rem) {
+        @apply !border-0 !text-[color:var(--sl-color-text)] !bg-[color:var(--sl-color-bg-accent)];
+
+        > kbd {
+          @apply inline-flex gap-1 !p-0 !bg-transparent;
+
+          kbd {
+            @apply !px-1.5 !rounded !bg-[color:var(--sl-color-bg-accent)] !text-[color:var(--sl-color-text)];
+          }
+
+          &:hover {
+            kbd {
+              @apply !bg-[color:var(--sl-color-bg)];
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* ===== RIGHT SIDEBAR ===== */
+  .right-sidebar-container {
+    --sl-color-hairline: rgba(0, 0, 0, 0) !important;
+    @apply bg-[color:var(--sl-color-bg)];
+  }
+
+  .right-sidebar-panel {
+    @apply !pt-10;
+  }
+
+  /* ===== TABLE OF CONTENTS ===== */
+  starlight-toc {
+    h2 {
+      @apply text-xs font-medium text-[color:var(--sl-color-text-muted)];
+    }
+
+    ul > li {
+      @apply py-1 border-l-0;
+
+      a {
+        @apply text-[color:var(--sl-color-text)];
+        padding-inline-start: calc(var(--depth) * 1em);
+      }
+
+      &:has([aria-current="true"]) {
+        a {
+          @apply !text-[color:var(--sl-color-accent)];
+        }
+
+        @apply border-l-[color:var(--sl-color-accent)];
+      }
+    }
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    --sl-color-hairline-shade: rgba(0, 0, 0, 0) !important;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    --sl-color-hairline-shade: rgba(0, 0, 0, 0) !important;
+
+    .sidebar-content {
+      @apply pt-8;
+    }
+
+    a[aria-current="page"] {
+      @apply !text-[color:var(--sl-color-accent)] !font-medium !bg-[color:var(--sl-color-bg-accent)];
+    }
+
+    a {
+      @apply !leading-normal;
+    }
+
+    a:not(:where(.not-content *)) {
+      @apply !text-[color:var(--sl-color-text)];
+    }
+
+    ul.top-level > li:not(:has(details)) > a {
+      & > span {
+        /* top level items */
+        @apply !text-sm !font-medium;
+      }
+    }
+
+    ul.top-level > li > details > ul > li {
+      @apply !ml-0 !border-l-0 !pl-0;
+    }
+
+    ul.top-level > li > details > ul > li > a {
+      @apply !pl-4 !border-l-4 !border-[color:var(--sl-color-bg)];
+    }
+
+    ul.top-level > li > details > ul > li > a[aria-current="page"] {
+      @apply !bg-[color:var(--sl-color-bg-accent)] !border-[color:var(--sl-color-accent)] !font-medium;
+    }
+
+    ul.top-level > li > details > ul > li > a:hover {
+      @apply !bg-[color:var(--sl-color-bg-accent)];
+    }
+
+    ul.top-level > li > details > summary {
+      @apply !justify-start;
+
+      svg {
+        @apply !text-[color:var(--sl-color-text-muted)] self-end;
+      }
+
+      span {
+        @apply !font-medium !text-xs !text-[color:var(--sl-color-text-muted)];
+      }
+    }
+
+    details > summary span {
+      @apply !text-sm;
+    }
+  }
+
+  /* ===== PAGINATION ===== */
+  .pagination-links a {
+    @apply !border-none !shadow-none;
+  }
+
+  .pagination-links a:hover {
+    @apply !bg-[color:var(--sl-color-bg-accent)];
+  }
+
+  /* ===== STEPS ===== */
+  .sl-steps > li::before {
+    @apply !bg-[color:var(--sl-color-bg-accent)] !shadow-none !font-medium;
+  }
+
+  /* ===== ASIDES & CARDS ===== */
+  .sl-markdown-content {
+    .starlight-aside--note {
+      --sl-color-asides-text-accent: var(--sl-color-text) !important;
+    }
+
+    .sl-link-card:hover {
+      @apply !bg-[color:var(--sl-color-bg-accent)];
+    }
+
+    aside.starlight-aside {
+      @apply bg-transparent border border-solid border-[color:var(--sl-color-bg-accent)] rounded-lg text-sm;
+
+      .starlight-aside__title {
+        @apply !text-sm;
+      }
+
+      .starlight-aside__content {
+        @apply !text-sm;
+      }
+    }
+  }
+
+  /* ===== EXPRESSIVE CODE LINE HEIGHT ===== */
+  .sl-markdown-content {
+    .expressive-code .ec-line {
+      @apply leading-[0.5rem];
+
+      &:has(.code *:is(span)) {
+        @apply leading-[1.2rem];
+      }
+    }
+    .sl-heading-wrapper.level-h2,
+    h2 {
+      @apply !text-2xl;
+    }
+
+    .sl-heading-wrapper.level-h3,
+    h3 {
+      @apply !text-xl;
+    }
+
+    .sl-heading-wrapper.level-h4,
+    h4 {
+      @apply !text-lg;
+    }
+    .sl-anchor-link {
+      @apply pl-2;
+    }
+  }
+
+  /* ===== HERO SECTION ===== */
+  .sl-code-tabs {
+    @apply bg-[color:var(--sl-color-bg-accent)] rounded-lg flex-1 overflow-x-scroll;
+
+    @media (min-width: 72rem) {
+      @apply mb-0 ml-0;
+    }
+
+    ul[role="tablist"] {
+      @apply border-b-0 w-full;
+    }
+
+    .tab a {
+      @apply pt-4 pl-4 p-0 text-xs rounded-none;
+
+      &[aria-selected="true"] {
+        @apply text-[color:var(--sl-color-text)] font-medium border-b-0;
+      }
+
+      &:not([aria-selected="true"]) {
+        @apply !text-[color:var(--sl-color-text-muted)];
+      }
+    }
+
+    .tablist-wrapper ~ [role="tabpanel"] {
+      @apply mt-0;
+    }
+  }
+
+  .sl-markdown-content .sl-hero {
+    @apply bg-[color:var(--sl-color-bg-muted)] rounded-3xl;
+
+    .sl-hero-container {
+      @apply flex-col;
+
+      @media (min-width: 72rem) {
+        @apply flex-row;
+      }
+    }
+
+    ul[role="tablist"] {
+      @apply border-b-0;
+    }
+
+    .sl-hero-code {
+      @apply bg-[color:var(--sl-color-bg-accent)] p-4 rounded-lg flex-1 overflow-x-scroll;
+
+      @media (min-width: 72rem) {
+        @apply mb-0 ml-0;
+      }
+    }
+
+    .tab a {
+      @apply p-0 pl-4 text-xs rounded-none;
+
+      &[aria-selected="true"] {
+        @apply text-[color:var(--sl-color-text)] font-medium border-b-0;
+      }
+
+      &:not([aria-selected="true"]) {
+        @apply !text-[color:var(--sl-color-text-muted)];
+      }
+    }
+
+    .tablist-wrapper ~ [role="tabpanel"] {
+      @apply mt-0;
+    }
+
+    .sl-quickstart {
+      @apply min-w-84;
+
+      @media (min-width: 72rem) {
+        @apply pr-0 max-w-80;
+      }
+
+      @apply !text-[color:var(--sl-color-text)];
+
+      span.title {
+        @apply text-base font-bold;
+      }
+
+      p {
+        @apply my-3 text-sm;
+      }
+
+      .sl-hero-cta {
+        @apply text-sm mt-4 font-medium !text-[color:var(--sl-color-bg)] bg-[color:var(--sl-color-text)] rounded-full py-2 px-4;
+
+        &:hover,
+        &:focus {
+          @apply bg-[color:var(--sl-color-text-muted)];
+        }
+
+        &::after {
+          content: "❯";
+          @apply ml-1;
+        }
+      }
+    }
+
+    .expressive-code {
+      @apply text-sm;
+    }
+  }
+
+  /* ===== EXPRESSIVE CODE STYLING ===== */
+  .sl-markdown-content .expressive-code {
+    .frame.has-title:not(.is-terminal) .header {
+      @apply bg-transparent;
+    }
+
+    .title {
+      @apply text-xs bg-[color:var(--sl-color-bg-accent)] text-[color:var(--sl-color-text)];
+    }
+
+    .frame.is-terminal .header {
+      @apply hidden;
+    }
+    .frame.has-title:not(.is-terminal) .title::after {
+      @apply border-none;
+    }
+
+    .mark {
+      @apply !bg-[color:var(--sl-color-accent)]/20;
+
+      .code {
+        @apply !border-l-0;
+      }
+    }
+
+    figure {
+      &:not(.is-terminal) {
+        figcaption::before {
+          /* top bar */
+          @apply bg-[color:var(--sl-color-bg-accent)] rounded-t-lg border-b border-solid border-[color:var(--sl-color-bg-accent)];
+        }
+      }
+
+      @apply shadow-none rounded-t-lg;
+
+      .header {
+        @apply bg-[color:var(--sl-color-bg-accent)] border-[color:var(--sl-color-bg-accent)] rounded-t-lg;
+
+        &::after {
+          @apply border-[color:var(--sl-color-bg-accent)];
+        }
+      }
+
+      &:not(:has(figcaption > span)) pre {
+        /* if there is no title, we need to round the corners */
+        @apply rounded-lg;
+      }
+
+      pre {
+        /* code */
+        @apply bg-[color:var(--sl-color-bg-accent)] border border-solid border-[color:var(--sl-color-bg-accent)] rounded-b-lg;
+
+        > code {
+          @apply !text-xs;
+        }
+      }
+
+      .copy {
+        button {
+          &::before {
+            @apply border-none;
+          }
+
+          @apply bg-transparent;
+
+          &:hover {
+            @apply !bg-[color:var(--sl-color-bg)];
+          }
+        }
+      }
+    }
+  }
+
+  .sl-markdown-content {
+    .card {
+      @apply bg-[color:var(--sl-color-bg-accent)] border-[color:var(--sl-color-bg-accent)] rounded-lg;
+    }
+  }
+}

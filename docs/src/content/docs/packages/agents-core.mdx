@@ -1,0 +1,160 @@
+---
+title: agents-core
+description: Core agent framework for the Gemini Interactions API
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The `@philschmid/agents-core` package provides the foundational primitives for building AI agents with the Gemini Interactions API. It's designed to be minimal, flexible, and framework-agnostic.
+
+## Features
+
+- **agentLoop**: One-shot agent execution with streaming event output
+- **AgentTool**: Flexible tool definition via JSON Schema
+- **Event Stream**: Real-time updates: text deltas, tool calls, errors, completion
+
+This is the low-level building block. For higher-level features like hooks, built-in tools, sessions, and skills, see the [`@philschmid/agent`](/packages/agent/) package.
+
+---
+
+## Installation
+
+<Tabs>
+  <TabItem label="bun">
+    ```bash
+    bun add @philschmid/agents-core
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @philschmid/agents-core
+    ```
+  </TabItem>
+</Tabs>
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+```
+
+---
+
+## When to Use
+
+**Choose `agents-core` when you need:**
+- Full control over the agent loop and event handling
+- Custom tooling infrastructure
+- Minimal dependencies
+- Building your own framework layer
+
+**Choose [`@philschmid/agent`](/packages/agent/) when you need:**
+- Built-in tools (read, write, bash, grep)
+- Lifecycle hooks for control flow
+- Multi-turn session management
+- Skills and subagents
+
+---
+
+## agentLoop
+
+The core function for executing agent tasks. It runs a complete agentic loop with tool calling and returns an event stream:
+
+```typescript
+import { agentLoop, printStream } from '@philschmid/agents-core';
+
+const stream = agentLoop(
+  [{ type: 'text', text: 'Analyze this code and suggest improvements' }],
+  { model: 'gemini-3-flash-preview', tools: [analyzerTool] }
+);
+
+await printStream(stream, { verbosity: 'verbose' });
+```
+
+For multi-turn conversations, use `previousInteractionId` to chain interactions:
+
+```typescript
+// Turn 1
+const stream1 = agentLoop([{ type: 'text', text: 'Hello' }], { model: 'gemini-3-flash-preview' });
+for await (const event of stream1) { /* handle events */ }
+const result1 = await stream1.result();
+
+// Turn 2 - chain with previous interaction
+const stream2 = agentLoop([{ type: 'text', text: 'What did I say?' }], {
+  model: 'gemini-3-flash-preview',
+  previousInteractionId: result1.interactionId,
+});
+```
+
+For a higher-level multi-turn API, see [AgentSession](/concepts/session/) in the `@philschmid/agent` package.
+
+---
+
+## Defining Tools
+
+Tools use JSON Schema for parameters and an async execute function:
+
+```typescript
+import { type AgentTool } from '@philschmid/agents-core';
+import * as fs from 'node:fs';
+
+const listDirTool: AgentTool = {
+  name: 'list_dir',
+  label: 'List Directory',
+  description: 'Lists the contents of a directory.',
+  parameters: {
+    type: 'object',
+    properties: {
+      directory_path: { type: 'string', description: 'Path to directory' },
+    },
+    required: ['directory_path'],
+  },
+  execute: async (_id, args) => {
+    const items = fs.readdirSync(args.directory_path as string);
+    return { result: items.join(', ') };
+  },
+};
+```
+
+---
+
+## Event Types
+
+The agent loop emits events as an async generator:
+
+| Event Type | Description |
+|------------|-------------|
+| `agent.start` | Agent loop begins |
+| `interaction.start` | LLM call begins |
+| `text.start` | Text block begins |
+| `text.delta` | Streaming text chunk |
+| `text.end` | Text block completes |
+| `thought.summary` | Thinking summary from model |
+| `tool.start` | Tool execution begins |
+| `tool.delta` | Streaming tool update |
+| `tool.end` | Tool execution completes |
+| `interaction.end` | LLM call completes |
+| `agent.end` | Agent loop finishes |
+
+```typescript
+for await (const event of stream) {
+  switch (event.type) {
+    case 'text.delta':
+      process.stdout.write(event.delta);
+      break;
+    case 'tool.start':
+      console.log(`Calling: ${event.name}`);
+      break;
+    case 'agent.end':
+      console.log('Done!');
+      break;
+  }
+}
+```
+
+---
+
+## Learn More
+
+- [Agent Loop](/concepts/agent-loop/): Detailed execution flow
+- [Tools](/concepts/tools/): Tool interface and patterns
+- [Session](/concepts/session/): Multi-turn conversations with `@philschmid/agent`
+- [Quickstart](/quickstart/): Get started in 5 minutes

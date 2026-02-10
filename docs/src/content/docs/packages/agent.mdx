@@ -1,0 +1,117 @@
+---
+title: agent
+description: High-level agent framework with hooks, built-in tools, and skills
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The `@philschmid/agent` package provides a batteries-included layer on top of `agents-core`. It's designed for building production agents quickly.
+
+## Features
+
+- **Hooks**: Intercept and control agent lifecycle events (`beforeToolExecute`, `afterToolExecute`, etc.)
+- **Built-in tools**: Ready-to-use tools for file operations, shell commands, and web access
+- **Skills**: Load specialized capabilities from YAML+Markdown files
+- **Subagents**: Delegate tasks to specialized agents
+
+For lower-level control, see the [`@philschmid/agents-core`](/packages/agents-core/) package.
+
+---
+
+## Installation
+
+<Tabs>
+  <TabItem label="bun">
+    ```bash
+    bun add @philschmid/agent
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @philschmid/agent
+    ```
+  </TabItem>
+</Tabs>
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+```
+
+---
+
+## AgentSession
+
+The main entry point is `createAgentSession`, which wraps the core [Session](/concepts/session/) with hooks and tool resolution:
+
+```typescript
+import { createAgentSession } from '@philschmid/agent';
+
+const session = createAgentSession({
+  model: 'gemini-3-flash-preview',
+  tools: ['read', 'write', 'bash'],
+  systemInstruction: 'You are a coding assistant.',
+});
+
+session.send('List files in the current directory');
+for await (const event of session.stream()) {
+  if (event.type === 'text.delta') process.stdout.write(event.delta);
+}
+```
+
+Pass tool names as strings, the session resolves them to full tool implementations automatically.
+
+---
+
+## Built-in Tools
+
+Reference [tools](/concepts/built-in-tools/) by string name:
+
+| Name | Tool(s) | Description |
+|------|---------|-------------|
+| `read` | `read_file`, `list_directory` | Read files and list directories |
+| `write` | `write_file`, `apply_patch` | Create/overwrite files & patch existing |
+| `bash` | `bash` | Execute shell commands |
+| `grep` | `grep` | Search in files |
+| `web_search` | `web_search` | Search the web |
+| `web_fetch` | `web_fetch` | Fetch URL content |
+| `sleep` | `sleep` | Pause execution |
+| `plan` | `update_plan` | Update agent planning state |
+| `skills` | `skills` | Load and invoke skills |
+| `subagent` | `subagent` | Delegate to a subagent |
+
+---
+
+## Hooks
+
+Control agent behavior by intercepting lifecycle events:
+
+```typescript
+// Log all tool calls
+session.on('beforeToolExecute', (event) => {
+  console.log(`[TOOL] ${event.toolName}`);
+  return { allow: true };
+});
+
+// Block destructive commands
+session.on('beforeToolExecute', (event) => {
+  if (event.toolName === 'bash') {
+    const cmd = event.arguments.command as string;
+    if (cmd.includes('rm -rf')) {
+      return { allow: false, reason: 'Blocked destructive command' };
+    }
+  }
+  return { allow: true };
+});
+```
+
+Hooks can allow, block, or modify tool calls before execution. See [Hooks](/concepts/hooks/) for all available lifecycle events.
+
+---
+
+## Learn More
+
+- [Quickstart](/quickstart/): Get started in 5 minutes
+- [Built-in Tools](/concepts/built-in-tools/): Complete tool reference
+- [Hooks](/concepts/hooks/): Lifecycle interception patterns
+- [Skills](/concepts/skills/): Loading specialized capabilities
+- [Subagents](/concepts/subagents/): Delegating to specialized agents
