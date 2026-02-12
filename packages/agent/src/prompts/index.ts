@@ -21,7 +21,7 @@ export function buildToolSystemInstruction(
   // Add skills section if skills tool is present
   const hasSkillsTool = tools.some((t) => t.name === 'skills');
   if (hasSkillsTool) {
-    const skills = loadSkills(CONFIG.artifactsPath);
+    const skills = loadSkills().filter((s) => !CONFIG.disabledSkills.includes(s.name));
     const skillsSection = createSkillSystemInstruction(skills);
     result += skillsSection;
   }
@@ -29,7 +29,7 @@ export function buildToolSystemInstruction(
   // Add subagents section if subagent tool is present
   const hasSubagentTool = tools.some((t) => t.name === 'delegate_to_subagent');
   if (hasSubagentTool) {
-    const subagents = loadSubagents(CONFIG.artifactsPath);
+    const subagents = loadSubagents().filter((s) => !CONFIG.disabledSubagents.includes(s.name));
     const subagentsSection = createSubagentSystemInstruction(subagents);
     result += subagentsSection;
   }

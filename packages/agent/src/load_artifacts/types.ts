@@ -7,6 +7,19 @@
 import { z } from 'zod';
 
 // ============================================================================
+// Artifact Source & Layer
+// ============================================================================
+
+/** Where an artifact was loaded from. */
+export type ArtifactSource = 'project' | 'global' | 'builtin';
+
+/** A discovery layer for multi-path artifact loading. */
+export type ArtifactLayer = {
+  path: string;
+  source: ArtifactSource;
+};
+
+// ============================================================================
 // Skill Schema
 // ============================================================================
 
@@ -28,6 +41,8 @@ export type Skill = SkillMetadata & {
   content: string;
   /** Path to the skill directory */
   path: string;
+  /** Where this skill was loaded from */
+  source: ArtifactSource;
 };
 
 // ============================================================================
@@ -56,4 +71,6 @@ export type SubagentMetadata = z.infer<typeof SubagentMetadataSchema>;
 export type Subagent = SubagentMetadata & {
   /** Markdown body (system instruction) */
   content: string;
+  /** Where this subagent was loaded from */
+  source: ArtifactSource;
 };
