@@ -84,6 +84,9 @@ git diff                # Review changes before commit
 
 <!-- Add mistakes the agent makes so it learns -->
 
+- Don't write shallow tests that only check `.toBeDefined()` — validate content, metadata, and functional behavior
+- Don't create parallel/duplicate functions when an existing one can be reused with the right parameters
+- Don't use hardcoded relative paths (`../..`) for package root resolution — they break after compilation
 - Don't use `any` type in TypeScript without explicit approval
 - Don't skip error handling
 - Don't commit without running tests first
@@ -108,8 +111,12 @@ git diff                # Review changes before commit
 ### Artifacts (Skills & Subagents)
 - Artifacts location: `.agent/skills/<name>/SKILL.md` (directories) and `.agent/subagents/<name>.md` (files)
 - Format: YAML frontmatter (`name`, `description`, optional `tools`/`skills`/`model`) + markdown body as `content`
-- Loading: `loadSkills()` and `loadSubagents()` from `@philschmid/agent`, configured via `AGENT_ARTIFACTS_PATH` env var
+- Loading: `loadSkills()` and `loadSubagents()` accept `ArtifactLayer[]`; precedence: project > global > built-in
+- Built-in artifacts: `packages/agent/skills/` and `packages/agent/subagents/` — shipped via `package.json` `files` field
+- Path resolution: use `findPackageRoot()` (not hardcoded `../..`) to resolve paths that work from both `src/` and `dist/`
+- Env vars: `AGENT_ARTIFACTS_PATH` (project), `AGENT_GLOBAL_ARTIFACTS_PATH` (global), `AGENT_DISABLED_SKILLS`/`AGENT_DISABLED_SUBAGENTS`
 - Optional properties: spread conditionally to avoid `undefined` keys: `...(value && { key: value })`
+- Subagent system prompt: append `createSkillSystemInstruction(declaredSkills)` — reuse existing builders, don't create parallel functions
 
 ---
 
