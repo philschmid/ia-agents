@@ -18,27 +18,35 @@ const session = createAgentSession({
 session.send('Use the code-review skill to analyze src/index.ts');
 ```
 
-## Configuration
+## Discovery Sources
+
+Skills are loaded from multiple sources with a defined precedence. When two skills share the same name, the **first match wins**:
+
+1. **Project** (`.agent/skills/`) — highest priority
+2. **Global** (`~/.agent/skills/`) — shared across projects
+3. **Built-in** (shipped with `@philschmid/agent`) — lowest priority
+
+```
+# Project skills (highest priority)
+.agent/skills/my-skill/SKILL.md
+
+# Global skills (shared across projects)
+~/.agent/skills/my-skill/SKILL.md
+
+# Built-in skills (shipped with the package)
+# e.g. skill-creator
+```
+
+### Configuration
+
+Override the paths with environment variables:
 
 ```bash
+# Override project artifacts path (default: .agent)
 export AGENT_ARTIFACTS_PATH=".agent"
-```
 
-Or in `settings.json`:
-
-```json
-{
-  "artifactsPath": ".agent"
-}
-```
-
-## Directory Structure
-
-```
-.agent/
-└── skills/
-    └── my-skill/
-        └── SKILL.md
+# Override global artifacts path (default: ~/.agent)
+export AGENT_GLOBAL_ARTIFACTS_PATH="/custom/global/path"
 ```
 
 ## SKILL.md Format
@@ -67,13 +75,16 @@ You are an expert code reviewer. When reviewing code:
 ## Loading Skills
 
 ```typescript
-import { loadSkills } from '@philschmid/agent';
+import { loadSkills, type ArtifactLayer } from '@philschmid/agent';
 
-// Load from default path (.agent/skills/)
+// Load from all default sources (project + global + built-in)
 const skills = loadSkills();
 
-// Load from custom path
-const skills = loadSkills('/path/to/artifacts');
+// Load from specific layers
+const skills = loadSkills([
+  { path: '.agent', source: 'project' },
+  { path: '/custom/path', source: 'global' },
+]);
 ```
 
 ### Skill Type
@@ -84,7 +95,25 @@ type Skill = {
   description: string; // From frontmatter
   content: string;     // Markdown body
   path: string;        // Directory path
+  source: 'project' | 'global' | 'builtin';
 };
+```
+
+## Disabling Skills
+
+Disable specific skills by name:
+
+```bash
+# Via environment variable (comma-separated)
+export AGENT_DISABLED_SKILLS="skill-creator,other-skill"
+```
+
+Or in `settings.json`:
+
+```json
+{
+  "disabledSkills": ["skill-creator"]
+}
 ```
 
 ## Best Practices
@@ -93,6 +122,7 @@ type Skill = {
 2. **Use clear, specific descriptions**: Helps with skill selection
 3. **Structure the body**: Use headings, lists, and code blocks
 4. **Bundle resources**: Include scripts or templates in the skill directory
+5. **Override built-ins**: Create a project skill with the same name to customize
 
 ---
 

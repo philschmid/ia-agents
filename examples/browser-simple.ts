@@ -17,9 +17,12 @@ import { formatEvent, printStream } from '@philschmid/agents-core';
 const session = createAgentSession({
   model: 'gemini-3-flash-preview',
   systemInstruction: 'You are a helpful file assistant. Be concise.',
+  tools: ['read', 'plan', 'subagent', 'write', 'bash'],
 });
 
-session.send('What is your name, what can you do tools, subagents, skills?');
+session.send(
+  'Find the latest interactions api feedback on https://discuss.ai.google.dev/ with links and summaries save it to disk. '
+);
 
 for await (const event of session.stream()) {
   const formatted = formatEvent(event, { verbosity: 'verbose' });

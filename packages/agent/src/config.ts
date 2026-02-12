@@ -22,6 +22,10 @@ export const AgentConfigSchema = CoreConfigSchema.extend({
   artifactsPath: z.string().default('.agent'),
   /** Stream subagent output to main agent */
   streamSubagents: z.boolean().default(false),
+  /** Subagent names to disable (won't be loaded or available) */
+  disabledSubagents: z.array(z.string()).default([]),
+  /** Skill names to disable (won't be loaded or available) */
+  disabledSkills: z.array(z.string()).default([]),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
@@ -30,6 +34,14 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 // Agent Config Loading
 // ============================================================================
 
+/** Parse a comma-separated env var into a trimmed, non-empty string array. */
+function parseCommaSeparated(value: string): string[] {
+  return value
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
+
 /**
  * Load agent config from env vars + settings.json.
  *
@@ -37,27 +49,20 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
  */
 export function loadAgentConfig(settingsPath?: string): AgentConfig {
   const baseConfig = loadConfig(AgentConfigSchema, settingsPath);
-  let config = baseConfig;
+  const env = process.env;
 
-  // Override defaultTools from env var if present (comma-separated)
-  if (process.env.AGENT_DEFAULT_TOOLS) {
-    const toolsFromEnv = process.env.AGENT_DEFAULT_TOOLS.split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-    config = { ...config, defaultTools: toolsFromEnv };
-  }
-
-  // Override artifactsPath from env var if present
-  if (process.env.AGENT_ARTIFACTS_PATH) {
-    config = { ...config, artifactsPath: process.env.AGENT_ARTIFACTS_PATH };
-  }
-
-  // Override streamSubagents from env var if present
-  if (process.env.AGENT_STREAM_SUBAGENTS) {
-    config = { ...config, streamSubagents: process.env.AGENT_STREAM_SUBAGENTS === 'true' };
-  }
-
-  return config;
+  return {
+    ...baseConfig,
+    ...(env.AGENT_DEFAULT_TOOLS && { defaultTools: parseCommaSeparated(env.AGENT_DEFAULT_TOOLS) }),
+    ...(env.AGENT_ARTIFACTS_PATH && { artifactsPath: env.AGENT_ARTIFACTS_PATH }),
+    ...(env.AGENT_STREAM_SUBAGENTS && { streamSubagents: env.AGENT_STREAM_SUBAGENTS === 'true' }),
+    ...(env.AGENT_DISABLED_SUBAGENTS && {
+      disabledSubagents: parseCommaSeparated(env.AGENT_DISABLED_SUBAGENTS),
+    }),
+    ...(env.AGENT_DISABLED_SKILLS && {
+      disabledSkills: parseCommaSeparated(env.AGENT_DISABLED_SKILLS),
+    }),
+  };
 }
 
 // ============================================================================

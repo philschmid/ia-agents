@@ -6,11 +6,12 @@
  */
 
 import { agentLoop, tool } from '@philschmid/agents-core';
-import type { AgentEvent, AgentTool, Turn } from '@philschmid/agents-core';
+import type { AgentTool, Turn } from '@philschmid/agents-core';
 import { z } from 'zod';
 import { getTools } from '..';
 import { CONFIG } from '../../config';
-import type { Subagent } from '../../load_artifacts';
+import type { Skill, Subagent } from '../../load_artifacts';
+import { createSkillSystemInstruction } from '../skills';
 import type { ToolName } from '../types';
 
 // ============================================================================
@@ -43,22 +44,34 @@ Rules:
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Extract the last text string from a Turn's content. */
+function extractTextFromTurn(turn: Turn): string | null {
+  const { content } = turn;
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return null;
+
+  const lastText = content
+    .filter((b): b is { type: 'text'; text: string } => b?.type === 'text')
+    .pop();
+  return lastText?.text ?? null;
+}
+
+// ============================================================================
 // Subagent Tool Factory
 // ============================================================================
 
 /**
  * Create the subagent delegation tool.
+ * Skills listed in a subagent's YAML are resolved and their system instruction
+ * is appended using the same `createSkillSystemInstruction` as the main agent.
  *
- * @example
- * ```ts
- * const subagentTool = createSubagentTool({
- *   availableTools: [readFileTool, writeFileTool, bashTool],
- * });
- * // Add to your tools array
- * const tools = [subagentTool, ...otherTools];
- * // Generate system instruction after tools are assembled
+ * @param subagents - Available subagents
+ * @param allSkills - All loaded skills (used to resolve subagent skill references)
  */
-export function createSubagentTool(subagents: Subagent[]): AgentTool {
+export function createSubagentTool(subagents: Subagent[], allSkills: Skill[] = []): AgentTool {
   // Get available tools (exclude delegate_to_subagent to prevent nested spawning)
   if (subagents.map((s) => s.name).includes('delegate_to_subagent')) {
     throw new Error('Subagent name "delegate_to_subagent" is reserved');
@@ -93,11 +106,25 @@ export function createSubagentTool(subagents: Subagent[]): AgentTool {
       const tools =
         subagent.tools && subagent.tools.length > 0 ? getTools(subagent.tools as ToolName[]) : [];
 
+      // Build system instruction: markdown content + skill awareness for declared skills
+      let systemInstruction = subagent.content;
+
+      if (subagent.skills && subagent.skills.length > 0) {
+        const resolvedSkills = subagent.skills
+          .map((skillName) => allSkills.find((s) => s.name === skillName))
+          .filter((s): s is Skill => s !== undefined);
+
+        if (resolvedSkills.length > 0) {
+          // Use the same skill system instruction builder as the main agent
+          systemInstruction += `\n\n${createSkillSystemInstruction(resolvedSkills)}`;
+        }
+      }
+
       try {
         // agentLoop returns an AgentEventStream (async iterable)
         const stream = agentLoop([{ type: 'text', text: task }], {
           model: subagent.model ?? CONFIG.defaultModel,
-          systemInstruction: subagent.content,
+          systemInstruction,
           tools,
           maxIterations: CONFIG.maxIterations,
         });
@@ -110,25 +137,8 @@ export function createSubagentTool(subagents: Subagent[]): AgentTool {
           .filter((t: Turn): t is Turn => t.role === 'model')
           .pop();
 
-        if (lastModelTurn?.content) {
-          const content = lastModelTurn.content;
-          // Handle both string and array content
-          if (typeof content === 'string') {
-            return { result: content };
-          }
-          const contentArray = Array.isArray(content) ? content : [];
-          const textBlocks = contentArray
-            .filter(
-              (b): b is { type: 'text'; text: string } =>
-                b != null && typeof b === 'object' && b.type === 'text' && 'text' in b
-            )
-            .map((b) => b.text);
-          return {
-            result: textBlocks[textBlocks.length - 1] || 'No text output produced by subagent.',
-          };
-        }
-
-        return { result: 'No output produced by subagent.' };
+        const text = lastModelTurn ? extractTextFromTurn(lastModelTurn) : null;
+        return { result: text ?? 'No output produced by subagent.' };
       } catch (error) {
         return { result: `Error executing subagent: ${error}`, isError: true };
       }

@@ -21,10 +21,20 @@ const session = createAgentSession({
 session.send('Delegate the documentation task to the docs-writer subagent');
 ```
 
-## Configuration
+## Discovery Sources
+
+Subagents are loaded from multiple sources with a defined precedence. When two subagents share the same name, the **first match wins**:
+
+1. **Project** (`.agent/subagents/`) — highest priority
+2. **Global** (`~/.agent/subagents/`) — shared across projects
+3. **Built-in** (shipped with `@philschmid/agent`) — lowest priority
 
 ```bash
+# Override project artifacts path (default: .agent)
 export AGENT_ARTIFACTS_PATH=".agent"
+
+# Override global artifacts path (default: ~/.agent)
+export AGENT_GLOBAL_ARTIFACTS_PATH="/custom/global/path"
 ```
 
 ## Directory Structure
@@ -74,19 +84,37 @@ You are an expert code reviewer with deep experience in:
 | Field | Type | Description |
 |-------|------|-------------|
 | `tools` | string[] | List of tool names the subagent can use |
-| `skills` | string[] | Skills to load for this subagent |
+| `skills` | string[] | Skills to inject into the subagent's system instruction |
 | `model` | string | Override the default model |
+
+### Skill Injection
+
+When a subagent declares `skills` in its frontmatter, those skills are automatically loaded and their content is injected into the subagent's system instruction. This gives the subagent specialized knowledge without duplicating instructions.
+
+```yaml
+---
+name: docs-writer
+description: Writes documentation
+skills:
+  - docs-style-guide
+  - api-conventions
+---
+```
+
+The subagent will receive the full content of both `docs-style-guide` and `api-conventions` skills as part of its system prompt.
 
 ## Loading Subagents
 
 ```typescript
-import { loadSubagents } from '@philschmid/agent';
+import { loadSubagents, type ArtifactLayer } from '@philschmid/agent';
 
-// Load from default path (.agent/subagents/)
+// Load from all default sources (project + global + built-in)
 const subagents = loadSubagents();
 
-// Load from custom path
-const subagents = loadSubagents('/path/to/artifacts');
+// Load from specific layers
+const subagents = loadSubagents([
+  { path: '.agent', source: 'project' },
+]);
 ```
 
 ### Subagent Type
@@ -96,11 +124,28 @@ type Subagent = {
   name: string;         // From frontmatter
   description: string;  // From frontmatter
   tools?: string[];     // Tool names to enable
-  skills?: string[];    // Skill names to load
+  skills?: string[];    // Skill names to inject
   model?: string;       // Model override
   content: string;      // System instruction (body)
-  path: string;         // File path
+  source: 'project' | 'global' | 'builtin';
 };
+```
+
+## Disabling Subagents
+
+Disable specific subagents by name:
+
+```bash
+# Via environment variable (comma-separated)
+export AGENT_DISABLED_SUBAGENTS="general-purpose,other-agent"
+```
+
+Or in `settings.json`:
+
+```json
+{
+  "disabledSubagents": ["general-purpose"]
+}
 ```
 
 ## Skills vs Subagents
@@ -125,6 +170,7 @@ Use **subagents** when you need isolation or specialized capabilities.
 3. **Use skills for shared knowledge**: Reference skills instead of duplicating
 4. **Choose appropriate models**: Use faster models for simple tasks
 5. **Define output formats**: Specify how results should be structured
+6. **Override built-ins**: Create a project subagent with the same name to customize
 
 ---
 

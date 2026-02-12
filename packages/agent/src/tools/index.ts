@@ -46,6 +46,10 @@ export { createSubagentTool, createSubagentSystemInstruction } from './subagent'
 export type { ToolName } from './types';
 export { DEFAULT_TOOL_NAMES } from './types';
 
+// Load all artifacts with multi-source discovery + disabled filtering
+const allSkills = loadSkills().filter((s) => !CONFIG.disabledSkills.includes(s.name));
+const allSubagents = loadSubagents().filter((s) => !CONFIG.disabledSubagents.includes(s.name));
+
 /**
  * Tool map with user-friendly names.
  * Some names map to multiple tools (e.g., 'write' gives both write_file and apply_patch).
@@ -61,8 +65,8 @@ const toolMap: Record<ToolName, AgentTool | AgentTool[]> = {
   write: [writeFileTool, applyPatchTool],
   web_fetch: webFetchTool,
   web_search: webSearchTool,
-  skills: createSkillTool(loadSkills(CONFIG.artifactsPath)),
-  subagent: createSubagentTool(loadSubagents(CONFIG.artifactsPath)),
+  skills: createSkillTool(allSkills),
+  subagent: createSubagentTool(allSubagents, allSkills),
 };
 
 /**
