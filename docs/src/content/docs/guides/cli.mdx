@@ -1,0 +1,102 @@
+---
+title: "CLI"
+description: "Use the agent directly from the command line"
+---
+
+import { LinkCard, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
+import Tip from '../../../components/callouts/Tip.astro';
+
+The `@philschmid/agent` package includes a CLI that lets you send prompts to the agent directly from your terminal — as an argument or via piped stdin.
+
+---
+
+## Installation
+
+Install the package globally to use the `agent` command:
+
+<Tabs>
+  <TabItem label="bun">
+    ```bash
+    bun add -g @philschmid/agent
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install -g @philschmid/agent
+    ```
+  </TabItem>
+</Tabs>
+
+Set your API key:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+```
+
+---
+
+## Usage
+
+### Prompt as argument
+
+```bash
+agent "Explain what a closure is in JavaScript"
+```
+
+### Piped stdin
+
+```bash
+echo "Summarize this" | agent
+cat README.md | agent "Explain this file"
+cat src/index.ts | agent --tools read,grep --system "You are a code reviewer"
+```
+
+---
+
+## Options
+
+| Flag | Short | Type | Default | Description |
+|:-----|:------|:-----|:--------|:------------|
+| `--model` | `-m` | `string` | `gemini-3-flash-preview` | Model ID |
+| `--tools` | `-t` | `string` | All tools | Comma-separated tool names |
+| `--system` | `-s` | `string` | — | System instruction |
+| `--help` | `-h` | `boolean` | — | Show usage |
+
+### Available tools
+
+`sleep`, `plan`, `read`, `write`, `grep`, `bash`, `web_fetch`, `web_search`, `skills`, `subagent`
+
+<Tip>
+When `--tools` is omitted, all tools are loaded. Restrict tools to limit what the agent can do — e.g. `--tools read,grep` for read-only analysis.
+</Tip>
+
+---
+
+## Examples
+
+**Code review a file:**
+
+```bash
+cat src/utils.ts | agent --system "Review this code for bugs and suggest improvements"
+```
+
+**Summarize with a specific model:**
+
+```bash
+cat report.md | agent -m gemini-3-flash-preview "Summarize in 3 bullet points"
+```
+
+**Read-only analysis (no write/bash access):**
+
+```bash
+agent --tools read,grep "Find all TODO comments in the src/ directory"
+```
+
+---
+
+## Next Steps
+
+<CardGrid>
+  <LinkCard title="Configuration" href="/guides/configuration" description="Environment variables and settings.json" />
+  <LinkCard title="Built-in Tools" href="/concepts/built-in-tools" description="Available tools reference" />
+</CardGrid>

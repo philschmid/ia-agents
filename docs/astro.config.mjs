@@ -33,6 +33,7 @@ const sidebar = [
   {
     label: 'Guides',
     items: [
+      { label: 'CLI', slug: 'guides/cli' },
       { label: 'Configuration', slug: 'guides/configuration' },
       { label: 'Tool Calling', slug: 'guides/tool-calling' },
       { label: 'Streaming', slug: 'guides/streaming' },

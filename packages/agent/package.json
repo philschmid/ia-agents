@@ -2,6 +2,9 @@
   "name": "@philschmid/agent",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "agent": "./dist/cli.js"
+  },
   "description": "Agent wrapper with hooks system for @philschmid/agents-core",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
