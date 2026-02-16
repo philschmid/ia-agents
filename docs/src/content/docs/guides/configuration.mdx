@@ -41,6 +41,11 @@ Or create a `settings.json` in your project root:
 | `AGENT_MAX_ITERATIONS` | `number` | `100` | Maximum loop iterations (prevents runaway agents) |
 | `AGENT_DEFAULT_TOOLS` | `string` | All tools | Comma-separated list of tool names |
 | `AGENT_SETTINGS_PATH` | `string` | `./settings.json` | Path to settings file |
+| `AGENT_ARTIFACTS_PATH` | `string` | `.agent` | Base path for project-level artifacts (skills, subagents) |
+| `AGENT_GLOBAL_ARTIFACTS_PATH` | `string` | `~/.agent` | Path for user-level global artifacts |
+| `AGENT_STREAM_SUBAGENTS` | `boolean` | `false` | Stream subagent output to the main agent (`true`/`false`) |
+| `AGENT_DISABLED_SKILLS` | `string` | — | Comma-separated skill names to disable |
+| `AGENT_DISABLED_SUBAGENTS` | `string` | — | Comma-separated subagent names to disable |
 
 <Tip>
 Environment variables override `settings.json` values. This lets you use a base config file while customizing per-environment.
@@ -67,7 +72,11 @@ Create `settings.json` in your project root or specify a custom path with `AGENT
     "bash",
     "web_fetch",
     "web_search"
-  ]
+  ],
+  "artifactsPath": ".agent",
+  "streamSubagents": false,
+  "disabledSkills": [],
+  "disabledSubagents": []
 }
 ```
 
@@ -78,6 +87,10 @@ Create `settings.json` in your project root or specify a custom path with `AGENT
 | `defaultModel` | `string` | `gemini-3-flash-preview` | Model identifier for API calls |
 | `maxIterations` | `number` | `100` | Maximum agent loop iterations |
 | `defaultTools` | `string[]` | All tools | Tools to load when none specified |
+| `artifactsPath` | `string` | `.agent` | Base path for project-level artifacts (skills, subagents) |
+| `streamSubagents` | `boolean` | `false` | Stream subagent output to the main agent |
+| `disabledSkills` | `string[]` | `[]` | Skill names to exclude from loading |
+| `disabledSubagents` | `string[]` | `[]` | Subagent names to exclude from loading |
 
 ---
 

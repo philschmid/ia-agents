@@ -1,6 +1,6 @@
 {
   "name": "@philschmid/agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "bin": {
     "agent": "./dist/cli.js"
@@ -16,7 +16,13 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist", "skills", "subagents", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "skills",
+    "subagents",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "bun test",
@@ -42,7 +48,13 @@
     "tsup": "^8.3.0",
     "typescript": "^5.6.3"
   },
-  "keywords": ["ai", "agents", "hooks", "gemini", "typescript"],
+  "keywords": [
+    "ai",
+    "agents",
+    "hooks",
+    "gemini",
+    "typescript"
+  ],
   "author": "Philipp Schmid",
   "repository": {
     "type": "git",
