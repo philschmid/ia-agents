@@ -14,7 +14,7 @@
  */
 
 import { parseArgs } from 'node:util';
-import { createAgentSession, printAgentStream, DEFAULT_TOOL_NAMES, type ToolName } from './index';
+import { DEFAULT_TOOL_NAMES, type ToolName, createAgentSession, printAgentStream } from './index';
 
 // ---------------------------------------------------------------------------
 // CLI args
